@@ -27,7 +27,7 @@ class AppAwareAnalyticsClient(
         val context = contextProvider()
         val baseProperties = buildMap {
             context?.let {
-                put("appId", it.appId.name)
+                put("appId", it.appId.externalName)
                 put("userType", it.userType.name)
             }
         }

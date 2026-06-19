@@ -59,7 +59,7 @@ private sealed interface Screen {
 fun App(appId: AppId = AppId.AppOne) {
     val compositionRoot = remember(appId) { AndroidAppCompositionRoot(appId) }
     val session = compositionRoot.session
-    var selectedUser by remember { mutableStateOf(defaultUsername(appId)) }
+    var selectedUser by remember { mutableStateOf(compositionRoot.shared.appDefinition.defaultUsername) }
     var context by remember { mutableStateOf<AppContext?>(null) }
     var features by remember { mutableStateOf<List<FeatureDescriptor>>(emptyList()) }
     var screen by remember { mutableStateOf<Screen>(Screen.Login) }
@@ -128,7 +128,7 @@ private fun LoginScreen(
     ) {
         item {
             Text(
-                text = appId.name,
+                text = appId.externalName,
                 style = MaterialTheme.typography.headlineLarge,
                 fontWeight = FontWeight.Bold,
             )
@@ -178,7 +178,7 @@ private fun FeatureListScreen(
             ) {
                 Column {
                     Text(
-                        text = context.appId.name,
+                        text = context.appId.externalName,
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                     )
@@ -335,9 +335,3 @@ private fun CapabilityLine(label: String, enabled: Boolean) {
         style = MaterialTheme.typography.bodyLarge,
     )
 }
-
-private fun defaultUsername(appId: AppId): String =
-    when (appId) {
-        AppId.AppOne -> "customer"
-        AppId.AppTwo -> "admin"
-    }

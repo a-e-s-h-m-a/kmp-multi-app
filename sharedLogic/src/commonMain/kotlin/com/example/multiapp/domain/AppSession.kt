@@ -49,9 +49,11 @@ class AppSession(
 
 class AppCompositionRoot(
     val appId: AppId,
+    private val appCatalog: AppCatalog = AppCatalog.default(),
 ) {
+    val appDefinition: AppDefinition = appCatalog.definition(appId)
     private val networkClient: NetworkClient = FakeNetworkClient()
-    private val authRepository: FakeAuthRepository = FakeAuthRepository(networkClient)
+    private val authRepository: FakeAuthRepository = FakeAuthRepository(networkClient, appCatalog)
     private val featureRegistry: FeatureRegistry = FeatureRegistry.default()
     private val deliveryPolicyResolver: DeliveryPolicyResolver = DeliveryPolicyResolver()
     private val consoleAnalyticsClient = ConsoleAnalyticsClient()

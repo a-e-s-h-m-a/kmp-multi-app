@@ -40,80 +40,39 @@ struct NativeDeliveryOrder: Identifiable {
 }
 
 struct NativeAppEnvironment {
-    let appIdName: String
+    private let facade: IOSAppFacade
 
-    func login(username: String) async -> NativeSessionSnapshot {
-        // In the full target wiring, this is where the SwiftUI app owns the native
-        // composition root and delegates login/feature/policy decisions to SharedLogic.
-        // SKIE can make these KMP calls feel more Swifty later.
-        let normalized = username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let features: [String]
-        let experience: String
+    init(appIdName: String) {
+        facade = IOSAppFacade(appIdName: appIdName)
+    }
 
-        switch (appIdName, normalized) {
-        case ("AppOne", "driver"):
-            features = ["Home", "Delivery", "Profile"]
-            experience = "Driver Delivery"
-        case ("AppOne", "readonly"):
-            features = ["Home", "Delivery", "Profile"]
-            experience = "Read Only Delivery"
-        case ("AppTwo", "admin"):
-            features = ["Home", "Delivery", "Reports", "Profile"]
-            experience = "Admin Delivery"
-        case ("AppTwo", "merchant"):
-            features = ["Home", "Delivery", "Reports", "Profile"]
-            experience = "Merchant Delivery"
-        case (_, "nod"):
-            features = ["Home", "Profile"]
-            experience = "Delivery Disabled"
-        default:
-            if appIdName == "AppOne" {
-                features = ["Home", "Delivery", "Payments", "Profile"]
-                experience = "Customer Delivery"
-            } else {
-                features = ["Home", "Profile"]
-                experience = "Delivery Disabled"
+    var appIdName: String { facade.appName }
+    var defaultUsername: String { facade.defaultUsername }
+
+    func login(username: String) async throws -> NativeSessionSnapshot {
+        let snapshot = try await withCheckedThrowingContinuation { continuation in
+            facade.login(username: username) { snapshot, error in
+                if let error {
+                    continuation.resume(throwing: error)
+                } else if let snapshot {
+                    continuation.resume(returning: snapshot)
+                }
             }
         }
 
         return NativeSessionSnapshot(
-            userSummary: "\(normalized) in \(appIdName)",
-            availableFeatures: features,
-            deliveryExperienceName: experience,
-            deliveryOrders: sampleOrders(for: experience)
+            userSummary: snapshot.userSummary,
+            availableFeatures: snapshot.availableFeatures,
+            deliveryExperienceName: snapshot.deliveryExperienceName,
+            deliveryOrders: snapshot.deliveryOrders.map {
+                NativeDeliveryOrder(
+                    id: $0.id,
+                    title: $0.title,
+                    status: $0.status,
+                    actions: $0.actions
+                )
+            }
         )
-    }
-
-    private func sampleOrders(for experience: String) -> [NativeDeliveryOrder] {
-        [
-            NativeDeliveryOrder(id: "DEL-1001", title: "Grocery drop-off", status: "Created", actions: actions(experience, "Created")),
-            NativeDeliveryOrder(id: "DEL-1002", title: "Pharmacy pickup", status: "Assigned", actions: actions(experience, "Assigned")),
-            NativeDeliveryOrder(id: "DEL-1003", title: "Cafe order", status: "PickedUp", actions: actions(experience, "PickedUp")),
-            NativeDeliveryOrder(id: "DEL-1004", title: "Office lunch", status: "Delivered", actions: ["ViewOnly"])
-        ]
-    }
-
-    private func actions(_ experience: String, _ status: String) -> [String] {
-        switch (experience, status) {
-        case ("Customer Delivery", "Created"):
-            return ["Cancel", "EditAddress", "Track"]
-        case ("Customer Delivery", "Assigned"), ("Customer Delivery", "PickedUp"):
-            return ["Track"]
-        case ("Driver Delivery", "Created"):
-            return ["Accept"]
-        case ("Driver Delivery", "Assigned"):
-            return ["MarkPickedUp", "Track"]
-        case ("Driver Delivery", "PickedUp"):
-            return ["MarkDelivered", "Track"]
-        case ("Admin Delivery", "Created"), ("Admin Delivery", "Assigned"):
-            return ["Cancel", "EditAddress", "Track"]
-        case ("Merchant Delivery", _):
-            return ["Track"]
-        case ("Delivery Disabled", _):
-            return []
-        default:
-            return ["ViewOnly"]
-        }
     }
 }
 
@@ -133,7 +92,7 @@ final class NativeAppStore: ObservableObject {
         self.environment = environment
         self.state = NativeAppState(
             appIdName: environment.appIdName,
-            selectedUsername: environment.appIdName == "AppOne" ? "customer" : "admin"
+            selectedUsername: environment.defaultUsername
         )
     }
 
@@ -143,12 +102,16 @@ final class NativeAppStore: ObservableObject {
             state.selectedUsername = username
         case .loginTapped:
             Task {
-                let snapshot = await environment.login(username: state.selectedUsername)
-                state.loggedInUserSummary = snapshot.userSummary
-                state.availableFeatures = snapshot.availableFeatures
-                state.deliveryExperienceName = snapshot.deliveryExperienceName
-                state.deliveryOrders = snapshot.deliveryOrders
-                state.selectedScreen = .features
+                do {
+                    let snapshot = try await environment.login(username: state.selectedUsername)
+                    state.loggedInUserSummary = snapshot.userSummary
+                    state.availableFeatures = snapshot.availableFeatures
+                    state.deliveryExperienceName = snapshot.deliveryExperienceName
+                    state.deliveryOrders = snapshot.deliveryOrders
+                    state.selectedScreen = .features
+                } catch {
+                    state.loggedInUserSummary = error.localizedDescription
+                }
             }
         case .logoutTapped:
             state.loggedInUserSummary = nil

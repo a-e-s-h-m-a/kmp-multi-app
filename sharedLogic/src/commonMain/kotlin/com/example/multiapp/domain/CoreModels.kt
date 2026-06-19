@@ -1,8 +1,21 @@
 package com.example.multiapp.domain
 
-enum class AppId {
-    AppOne,
-    AppTwo,
+data class AppId(val externalName: String) {
+    init {
+        require(externalName.isNotBlank()) { "App id cannot be blank." }
+    }
+
+    companion object {
+        val AppOne = AppId("AppOne")
+        val AppTwo = AppId("AppTwo")
+
+        fun fromExternalName(value: String): AppId =
+            when {
+                AppOne.externalName.equals(value.trim(), ignoreCase = true) -> AppOne
+                AppTwo.externalName.equals(value.trim(), ignoreCase = true) -> AppTwo
+                else -> AppId(value.trim())
+            }
+    }
 }
 
 enum class UserType {

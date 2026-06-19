@@ -10,6 +10,53 @@ class SharedArchitectureTest {
     private val resolver = DeliveryPolicyResolver()
 
     @Test
+    fun externalAppNamesAreParsedCentrally() {
+        assertEquals(AppId.AppOne, AppId.fromExternalName("appone"))
+        assertEquals(AppId.AppTwo, AppId.fromExternalName(" AppTwo "))
+        assertEquals(AppId("AppThree"), AppId.fromExternalName("AppThree"))
+    }
+
+    @Test
+    fun appDefaultsComeFromCatalog() {
+        val catalog = AppCatalog.default()
+
+        assertEquals("customer", catalog.definition(AppId.AppOne).defaultUsername)
+        assertEquals("admin", catalog.definition(AppId.AppTwo).defaultUsername)
+    }
+
+    @Test
+    fun catalogAcceptsAnAppWithoutChangingCoreLogic() {
+        val appThree = AppId("AppThree")
+        val catalog = AppCatalog(
+            definitions = listOf(
+                AppDefinition(
+                    id = appThree,
+                    displayName = "App Three",
+                    configKey = "appThree",
+                    defaultUsername = "viewer",
+                    defaultUserType = UserType.Customer,
+                    profiles = mapOf(
+                        "viewer" to UserProfile(
+                            userType = UserType.Customer,
+                            capabilities = UserCapabilities(
+                                delivery = null,
+                                reports = null,
+                                payments = null,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        val context = catalog.contextFor(appThree, "viewer")
+
+        assertEquals(appThree, context.appId)
+        assertEquals("appThree-viewer", context.userId)
+        assertEquals(listOf(FeatureId.Home, FeatureId.Profile), registry.availableFeatures(context).map { it.id })
+    }
+
+    @Test
     fun appOneCustomerFeatures() {
         val context = auth.contextFor(AppId.AppOne, "customer")
 

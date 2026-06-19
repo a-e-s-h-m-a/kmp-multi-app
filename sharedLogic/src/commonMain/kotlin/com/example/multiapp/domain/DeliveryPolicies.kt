@@ -122,19 +122,12 @@ class DeliveryPolicyResolver {
     fun resolve(context: AppContext): DeliveryPolicy {
         val delivery = context.capabilities.delivery ?: return DisabledDeliveryPolicy
 
-        return when {
-            delivery.mode == DeliveryMode.Customer && context.appId == AppId.AppOne ->
-                CustomerDeliveryPolicy(delivery)
-            delivery.mode == DeliveryMode.Driver && context.appId == AppId.AppOne ->
-                DriverDeliveryPolicy(delivery)
-            delivery.mode == DeliveryMode.Admin && context.appId == AppId.AppTwo ->
-                AdminDeliveryPolicy(delivery)
-            delivery.mode == DeliveryMode.Merchant && context.appId == AppId.AppTwo ->
-                MerchantDeliveryPolicy(delivery)
-            delivery.mode == DeliveryMode.ReadOnly ->
-                ReadOnlyDeliveryPolicy
-            else ->
-                DisabledDeliveryPolicy
+        return when (delivery.mode) {
+            DeliveryMode.Customer -> CustomerDeliveryPolicy(delivery)
+            DeliveryMode.Driver -> DriverDeliveryPolicy(delivery)
+            DeliveryMode.Admin -> AdminDeliveryPolicy(delivery)
+            DeliveryMode.Merchant -> MerchantDeliveryPolicy(delivery)
+            DeliveryMode.ReadOnly -> ReadOnlyDeliveryPolicy
         }
     }
 }

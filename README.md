@@ -9,6 +9,8 @@ It is not a single super app. It models two separate app identities:
 
 Shared KMP logic owns identity, session state, fake login/config, network and analytics abstractions, typed capabilities, feature availability, delivery policy resolution, and common tests. Native platforms own screens, navigation, platform composition roots, target/flavor branding, and platform-specific dependency wiring.
 
+App metadata and sample user profiles are data-driven. `AppCatalog.kt` is the single shared registration point; authentication, feature selection, delivery policies, Android, and iOS consume its typed results.
+
 ## Architecture Flow
 
 ```text
@@ -101,12 +103,12 @@ Native UI renders the returned descriptors. It does not check `AppId` directly t
 
 ## Delivery Policy Resolver
 
-`DeliveryPolicyResolver` centralizes app/user/config variation:
+`DeliveryPolicyResolver` selects behavior from the resolved capability mode:
 
-- AppOne + Customer mode -> `CustomerDeliveryPolicy`
-- AppOne + Driver mode -> `DriverDeliveryPolicy`
-- AppTwo + Admin mode -> `AdminDeliveryPolicy`
-- AppTwo + Merchant mode -> `MerchantDeliveryPolicy`
+- Customer mode -> `CustomerDeliveryPolicy`
+- Driver mode -> `DriverDeliveryPolicy`
+- Admin mode -> `AdminDeliveryPolicy`
+- Merchant mode -> `MerchantDeliveryPolicy`
 - ReadOnly mode -> `ReadOnlyDeliveryPolicy`
 - Missing or invalid delivery capability -> `DisabledDeliveryPolicy`
 
@@ -166,7 +168,7 @@ The multi-app SwiftUI source is split across:
 
 Open `iosApp/iosApp.xcodeproj`, pick `AppOne` or `AppTwo` from the Xcode scheme dropdown, choose a simulator, and run.
 
-Each target injects a different app identity. The SwiftUI sample is TCA-friendly: it uses state, action, environment/dependencies, and a reducer-like store. Full TCA and SKIE can be added later for better Swift/KMP ergonomics.
+Each target injects a different app identity. `IOSAppFacade` converts shared session state into Swift-friendly snapshots, so SwiftUI does not duplicate app or permission rules. The SwiftUI sample is TCA-friendly: it uses state, action, environment/dependencies, and a reducer-like store. Full TCA and SKIE can be added later for better Swift/KMP ergonomics.
 
 ## How To Add A New Feature
 
@@ -180,13 +182,14 @@ Each target injects a different app identity. The SwiftUI sample is TCA-friendly
 
 ## How To Add A New App
 
-1. Add a new `AppId`.
-2. Add an Android flavor or app module.
-3. Add an iOS target.
-4. Provide app-specific composition root injection.
-5. Define bundled features through typed capabilities.
-6. Add fake config/login rules.
-7. Add resolver and feature tests.
+1. Create an `AppId` value and `AppDefinition` in `AppCatalog.default()` (or inject a custom `AppCatalog`).
+2. Define user profiles using typed capabilities in that definition.
+3. Add an Android flavor or app module that injects the external app name.
+4. Add an iOS target that injects the same external app name.
+5. Add fake network responses when needed.
+6. Add catalog, feature, and policy tests.
+
+No authentication, feature-registry, delivery-policy, Android activity, or SwiftUI branching is required for another app that uses existing capabilities.
 
 ## How To Add A New Delivery Experience
 

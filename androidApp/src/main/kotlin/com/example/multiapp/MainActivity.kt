@@ -26,7 +26,4 @@ fun AppAndroidPreview() {
 }
 
 private fun String.toAppId(): AppId =
-    when (this) {
-        "AppTwo" -> AppId.AppTwo
-        else -> AppId.AppOne
-    }
+    AppId.fromExternalName(this)
