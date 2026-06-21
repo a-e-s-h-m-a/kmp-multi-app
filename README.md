@@ -51,6 +51,420 @@ The original 1254px generated masters are retained in `design/app-icons`. Androi
 
 The icons were generated with the built-in image generation tool using simple logo prompts: AppOne combines a delivery location pin and parcel on emerald, while AppTwo combines an operations grid and completion check on cobalt. Both prompts requested centered, text-free artwork with sufficient safe space for Android adaptive masks.
 
+## Core Mechanism: Identity, Features And Experience
+
+The architecture separates three decisions that are often mixed together in multi-app projects:
+
+| Decision | Question | Input | Output |
+|---|---|---|---|
+| App selection | Which installed product is running? | Android flavor or iOS target | `AppId` |
+| Feature selection | Which features may this user enter? | `AppContext.capabilities` | `List<FeatureDescriptor>` |
+| Experience selection | How does an available feature behave? | Feature capability and mode | Policy/strategy such as `DeliveryPolicy` |
+
+The complete pipeline is:
+
+```text
+Android flavor / iOS target
+    -> injects AppId
+    -> login resolves AppId + username into AppContext
+    -> FeatureRegistry returns available features
+    -> DeliveryPolicyResolver returns a behavior policy
+    -> UI renders only the returned features and actions
+```
+
+```mermaid
+flowchart TD
+    Product["Android flavor or iOS target"] --> AppId["AppId"]
+    AppId --> Login["Login with username"]
+    Login --> Catalog["AppCatalog"]
+    Catalog --> Context["AppContext with typed capabilities"]
+    Context --> FeatureRegistry["FeatureRegistry"]
+    Context --> PolicyResolver["DeliveryPolicyResolver"]
+    FeatureRegistry --> VisibleFeatures["Visible feature descriptors"]
+    PolicyResolver --> BehaviorPolicy["Behavior policy"]
+    BehaviorPolicy --> AllowedActions["Allowed actions by domain state"]
+    VisibleFeatures --> UI["Native UI"]
+    AllowedActions --> UI
+```
+
+The central rule is:
+
+> `AppId` selects configuration. Capabilities select features. Policies select behavior. UI renders the result.
+
+`AppId` should not become a global switch used throughout the application. After login, most shared and UI code should work from `AppContext` and typed capabilities.
+
+### Step 1: The Platform Injects App Identity
+
+App identity belongs to packaging and composition, not login UI.
+
+On Android, selecting a flavor generates a different `BuildConfig.APP_ID`:
+
+```kotlin
+// androidApp/build.gradle.kts
+productFlavors {
+    create("appOne") {
+        applicationId = "com.aeshma.appone"
+        buildConfigField("String", "APP_ID", "\"AppOne\"")
+    }
+    create("appTwo") {
+        applicationId = "com.aeshma.apptwo"
+        buildConfigField("String", "APP_ID", "\"AppTwo\"")
+    }
+}
+```
+
+`MainActivity` passes the generated value into shared UI:
+
+```kotlin
+setContent {
+    App(appId = AppId.fromExternalName(BuildConfig.APP_ID))
+}
+```
+
+On iOS, each target has its own entry point:
+
+```swift
+// AppOne/AppOneApp.swift
+MultiAppRootView(appIdName: "AppOne")
+
+// AppTwo/AppTwoApp.swift
+MultiAppRootView(appIdName: "AppTwo")
+```
+
+Both platforms eventually create the same shared runtime:
+
+```kotlin
+fun createAppRuntime(
+    appId: AppId,
+    appCatalog: AppCatalog = AppCatalog(defaultAppDefinitions()),
+): AppRuntime =
+    AppRuntime(
+        createGraphFactory<AppGraph.Factory>()
+            .create(appId, appCatalog),
+    )
+```
+
+This is the only point where the running product identity enters the shared application graph.
+
+### Step 2: Login Creates A Typed AppContext
+
+Login combines two independent inputs:
+
+- `AppId`: the installed product.
+- `username`: the current user/profile.
+
+The result is an `AppContext`:
+
+```kotlin
+data class AppContext(
+    val appId: AppId,
+    val userId: String,
+    val userType: UserType,
+    val capabilities: UserCapabilities,
+)
+```
+
+`LocalAuthRepository` does not contain AppOne/AppTwo branches. It delegates configuration resolution to `AppCatalog`:
+
+```kotlin
+class LocalAuthRepository(
+    private val appCatalog: AppCatalog,
+) : AuthRepository {
+    override suspend fun login(
+        appId: AppId,
+        username: String,
+    ): AppContext = appCatalog.contextFor(appId, username)
+}
+```
+
+`AppCatalog` finds the app definition, then finds the user profile inside that definition:
+
+```kotlin
+fun contextFor(appId: AppId, username: String): AppContext {
+    val definition = definition(appId)
+    val normalizedUsername = username.trim().lowercase()
+    val profile = definition.profileFor(normalizedUsername)
+
+    return AppContext(
+        appId = definition.id,
+        userId = "${definition.configKey}-$normalizedUsername",
+        userType = profile.userType,
+        capabilities = profile.capabilities,
+    )
+}
+```
+
+For example:
+
+```text
+AppOne + customer
+    -> UserType.Customer
+    -> DeliveryCapability(mode = Customer, ...)
+    -> PaymentsCapability(...)
+    -> no ReportsCapability
+
+AppTwo + merchant
+    -> UserType.Merchant
+    -> DeliveryCapability(mode = Merchant, ...)
+    -> ReportsCapability(merchant reports = true)
+    -> no PaymentsCapability
+```
+
+The rest of the app consumes these typed results. It does not need to know which configuration file or server response produced them.
+
+In a production project, `LocalAuthRepository` can be replaced with a remote implementation:
+
+```text
+API response / remote config
+    -> DTO validation
+    -> domain mapper
+    -> AppContext with typed capabilities
+```
+
+The feature registry and policies remain unchanged because they depend on `AppContext`, not the source of configuration.
+
+### Step 3: FeatureRegistry Selects Visibility
+
+A feature descriptor owns its stable ID, display title and availability rule:
+
+```kotlin
+class FeatureDescriptor(
+    val id: FeatureId,
+    val title: String,
+    private val availability: (AppContext) -> Boolean,
+) {
+    fun isAvailable(context: AppContext): Boolean = availability(context)
+}
+```
+
+The registry contains the complete feature menu and filters it using the current context:
+
+```kotlin
+class FeatureRegistry {
+    private val features = listOf(
+        FeatureDescriptor(FeatureId.Home, "Home") { true },
+        FeatureDescriptor(FeatureId.Delivery, "Delivery") {
+            it.capabilities.delivery != null
+        },
+        FeatureDescriptor(FeatureId.Reports, "Reports") {
+            it.capabilities.reports?.canViewReports == true
+        },
+        FeatureDescriptor(FeatureId.Payments, "Payments") {
+            it.capabilities.payments?.canMakePayment == true
+        },
+        FeatureDescriptor(FeatureId.Profile, "Profile") { true },
+    )
+
+    fun availableFeatures(context: AppContext): List<FeatureDescriptor> =
+        features.filter { it.isAvailable(context) }
+}
+```
+
+Notice what is deliberately absent:
+
+```kotlin
+// Avoid this pattern.
+if (appId == AppId.AppOne && userType == UserType.Customer) {
+    showDelivery()
+}
+```
+
+The registry asks only whether the required capability exists. This makes feature availability reusable across new apps and new user types.
+
+Examples:
+
+```text
+AppOne customer capabilities
+    -> Home, Delivery, Payments, Profile
+
+AppTwo merchant capabilities
+    -> Home, Delivery, Reports, Profile
+
+AppTwo nod capabilities
+    -> Home, Profile
+```
+
+### Step 4: A Policy Selects Feature Behavior
+
+Feature visibility answers whether Delivery can be opened. It does not describe what the user can do inside Delivery.
+
+That second question is handled by the Strategy pattern:
+
+```kotlin
+interface DeliveryPolicy {
+    val experienceName: String
+    fun availableActions(order: DeliveryOrder): List<DeliveryAction>
+    fun canOpenDeliveryDetails(order: DeliveryOrder): Boolean
+}
+```
+
+`DeliveryPolicyResolver` converts the typed delivery mode into one policy:
+
+```kotlin
+class DeliveryPolicyResolver {
+    fun resolve(context: AppContext): DeliveryPolicy {
+        val delivery = context.capabilities.delivery
+            ?: return DisabledDeliveryPolicy
+
+        return when (delivery.mode) {
+            DeliveryMode.Customer -> CustomerDeliveryPolicy(delivery)
+            DeliveryMode.Driver -> DriverDeliveryPolicy(delivery)
+            DeliveryMode.Admin -> AdminDeliveryPolicy(delivery)
+            DeliveryMode.Merchant -> MerchantDeliveryPolicy(delivery)
+            DeliveryMode.ReadOnly -> ReadOnlyDeliveryPolicy
+        }
+    }
+}
+```
+
+Again, there are no AppOne/AppTwo checks. Two different apps can reuse the same experience by receiving the same capability mode.
+
+The selected policy then combines capability flags with domain state:
+
+```kotlin
+// Simplified customer policy example
+override fun availableActions(order: DeliveryOrder): List<DeliveryAction> =
+    when (order.status) {
+        DeliveryStatus.Created -> buildList {
+            if (capability.canCancelDelivery) add(DeliveryAction.Cancel)
+            if (capability.canEditAddress) add(DeliveryAction.EditAddress)
+            if (capability.showLiveTracking) add(DeliveryAction.Track)
+        }
+        DeliveryStatus.Assigned,
+        DeliveryStatus.PickedUp -> listOf(DeliveryAction.Track)
+        DeliveryStatus.Delivered,
+        DeliveryStatus.Cancelled -> listOf(DeliveryAction.ViewOnly)
+    }
+```
+
+This produces two levels of control:
+
+```text
+DeliveryCapability exists
+    -> Delivery appears in navigation
+
+DeliveryCapability.mode and flags + DeliveryOrder.status
+    -> Customer/Driver/Admin/Merchant/ReadOnly experience
+    -> Allowed actions for that specific order
+```
+
+### Step 5: UI Only Renders The Decisions
+
+Compose asks `AppSession` for available features after login:
+
+```kotlin
+coroutineScope.launch {
+    context = session.login(runtime.appId, selectedUser)
+    features = session.availableFeatures()
+    screen = Screen.Features
+}
+```
+
+It renders the returned descriptors without reconstructing permission rules:
+
+```kotlin
+items(features, key = { it.id.value }) { feature ->
+    Card(
+        modifier = Modifier.clickable {
+            onFeatureTapped(feature)
+        },
+    ) {
+        Text(feature.title)
+    }
+}
+```
+
+The Delivery screen renders actions returned by the selected policy:
+
+```kotlin
+val policy = session.deliveryPolicy()
+
+DeliveryView(
+    policyName = policy.experienceName,
+    orders = session.deliveryOrders(),
+    actionsForOrder = policy::availableActions,
+)
+```
+
+The same rule applies on iOS. `IOSAppFacade` returns `SharedSessionSnapshot`, containing already-selected features, experience name and order actions. SwiftUI maps that snapshot into native state and renders it.
+
+The UI may switch on stable `FeatureId` for navigation to the correct screen. It should not switch on `AppId`, `UserType` or raw permission strings to decide availability or behavior.
+
+### Two End-To-End Examples
+
+#### AppOne Customer
+
+```text
+appOneDebug flavor / AppOne Xcode target
+    -> AppId("AppOne")
+    -> login("customer")
+    -> AppCatalog selects AppOne.customer profile
+    -> AppContext contains Customer delivery + Payments
+    -> FeatureRegistry returns Home, Delivery, Payments, Profile
+    -> DeliveryPolicyResolver returns CustomerDeliveryPolicy
+    -> Created order returns Cancel, EditAddress, Track
+    -> UI renders those four features and three order actions
+```
+
+#### AppTwo Merchant
+
+```text
+appTwoDebug flavor / AppTwo Xcode target
+    -> AppId("AppTwo")
+    -> login("merchant")
+    -> AppCatalog selects AppTwo.merchant profile
+    -> AppContext contains Merchant delivery + Merchant reports
+    -> FeatureRegistry returns Home, Delivery, Reports, Profile
+    -> DeliveryPolicyResolver returns MerchantDeliveryPolicy
+    -> Non-terminal order returns Track
+    -> UI renders those four features and the Track action
+```
+
+### Why This Scales To Other Projects
+
+The architecture changes for different reasons in different places:
+
+| Change | Where to modify | What should remain unchanged |
+|---|---|---|
+| Add a separately packaged app | Platform flavor/target and `AppDefinition` | Existing screens and policies |
+| Add a user/profile | The relevant app definition | Platform entry points and UI |
+| Change permissions | Capability configuration or remote mapping | UI navigation implementation |
+| Add a feature | Capability, descriptor and feature module | Other feature policies |
+| Add a new delivery experience | New `DeliveryMode`, policy and resolver mapping | Feature registry and platform selection |
+| Change order-state actions | The selected delivery policy | App definitions and navigation |
+
+Use these boundaries in another project:
+
+```text
+ProductIdentity                 // injected by platform packaging
+SessionContext                  // identity + user + typed capabilities
+FeatureRegistry                 // context -> visible features
+ExperienceResolver              // context -> feature strategy
+Policy                          // capability + domain state -> actions
+PresentationSnapshot            // platform-friendly rendered state
+```
+
+The feature does not have to be Delivery. The same pattern works for:
+
+- Customer checkout versus staff checkout.
+- Viewer, editor and approver document experiences.
+- Retail, merchant and warehouse inventory workflows.
+- Free, premium and enterprise reporting.
+- Patient, clinician and administrator healthcare workflows.
+
+### Rules To Preserve
+
+1. Inject product identity at the platform composition boundary.
+2. Convert external configuration into typed domain capabilities once.
+3. Keep app-name and username checks out of screens.
+4. Use a registry for feature availability.
+5. Use policies/strategies for behavior that varies by capability or role.
+6. Let policies evaluate domain state and return allowed actions.
+7. Give UI stable IDs, display models and actions to render.
+8. Test capability matrices and policies independently from UI.
+9. Fail explicitly for unknown apps/profiles instead of choosing an unsafe fallback.
+10. Keep DI at the composition boundary so business classes stay framework-independent.
+
 ## Architecture Overview
 
 ```mermaid
