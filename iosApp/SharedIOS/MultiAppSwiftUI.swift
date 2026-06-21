@@ -18,7 +18,8 @@ struct NativeAppState {
     var appIdName: String
     var selectedUsername: String
     var loggedInUserSummary: String?
-    var availableFeatures: [String] = []
+    var availableFeatures: [NativeFeature] = []
+    var loginError: String?
     var selectedScreen: NativeScreen = .login
     var deliveryExperienceName: String = "Delivery Disabled"
     var deliveryOrders: [NativeDeliveryOrder] = []
@@ -39,6 +40,11 @@ struct NativeDeliveryOrder: Identifiable {
     let actions: [String]
 }
 
+struct NativeFeature: Identifiable, Equatable {
+    let id: String
+    let title: String
+}
+
 struct NativeAppEnvironment {
     private let facade: IOSAppFacade
 
@@ -48,21 +54,33 @@ struct NativeAppEnvironment {
 
     var appIdName: String { facade.appName }
     var defaultUsername: String { facade.defaultUsername }
+    var supportedUsernames: [String] { facade.supportedUsernames }
 
     func login(username: String) async throws -> NativeSessionSnapshot {
-        let snapshot = try await withCheckedThrowingContinuation { continuation in
+        let snapshot: SharedSessionSnapshot = try await withCheckedThrowingContinuation {
+            (continuation: CheckedContinuation<SharedSessionSnapshot, Error>) in
             facade.login(username: username) { snapshot, error in
                 if let error {
                     continuation.resume(throwing: error)
                 } else if let snapshot {
                     continuation.resume(returning: snapshot)
+                } else {
+                    continuation.resume(
+                        throwing: NSError(
+                            domain: "SharedLogic",
+                            code: 1,
+                            userInfo: [NSLocalizedDescriptionKey: "Shared login returned no result."]
+                        )
+                    )
                 }
             }
         }
 
         return NativeSessionSnapshot(
             userSummary: snapshot.userSummary,
-            availableFeatures: snapshot.availableFeatures,
+            availableFeatures: snapshot.availableFeatures.map {
+                NativeFeature(id: $0.id, title: $0.title)
+            },
             deliveryExperienceName: snapshot.deliveryExperienceName,
             deliveryOrders: snapshot.deliveryOrders.map {
                 NativeDeliveryOrder(
@@ -78,7 +96,7 @@ struct NativeAppEnvironment {
 
 struct NativeSessionSnapshot {
     let userSummary: String
-    let availableFeatures: [String]
+    let availableFeatures: [NativeFeature]
     let deliveryExperienceName: String
     let deliveryOrders: [NativeDeliveryOrder]
 }
@@ -87,6 +105,8 @@ struct NativeSessionSnapshot {
 final class NativeAppStore: ObservableObject {
     @Published private(set) var state: NativeAppState
     private let environment: NativeAppEnvironment
+
+    var supportedUsernames: [String] { environment.supportedUsernames }
 
     init(environment: NativeAppEnvironment) {
         self.environment = environment
@@ -102,6 +122,7 @@ final class NativeAppStore: ObservableObject {
             state.selectedUsername = username
         case .loginTapped:
             Task {
+                state.loginError = nil
                 do {
                     let snapshot = try await environment.login(username: state.selectedUsername)
                     state.loggedInUserSummary = snapshot.userSummary
@@ -110,12 +131,13 @@ final class NativeAppStore: ObservableObject {
                     state.deliveryOrders = snapshot.deliveryOrders
                     state.selectedScreen = .features
                 } catch {
-                    state.loggedInUserSummary = error.localizedDescription
+                    state.loginError = error.localizedDescription
                 }
             }
         case .logoutTapped:
             state.loggedInUserSummary = nil
             state.availableFeatures = []
+            state.loginError = nil
             state.selectedScreen = .login
         case let .featureTapped(feature):
             state.selectedScreen = .feature(feature)
@@ -140,7 +162,7 @@ struct MultiAppRootView: View {
         NavigationStack {
             switch store.state.selectedScreen {
             case .login:
-                LoginView(state: store.state, send: store.send)
+                LoginView(users: store.supportedUsernames, state: store.state, send: store.send)
             case .features:
                 FeatureListView(state: store.state, send: store.send)
             case let .feature(feature):
@@ -151,9 +173,9 @@ struct MultiAppRootView: View {
 }
 
 private struct LoginView: View {
+    let users: [String]
     let state: NativeAppState
     let send: (NativeAppAction) -> Void
-    private let users = ["customer", "driver", "admin", "merchant", "readonly", "nod"]
 
     var body: some View {
         List {
@@ -170,6 +192,9 @@ private struct LoginView: View {
                     send(.loginTapped)
                 }
             }
+            if let loginError = state.loginError {
+                Text(loginError).foregroundStyle(.red)
+            }
         }
         .navigationTitle(state.appIdName)
     }
@@ -182,9 +207,9 @@ private struct FeatureListView: View {
     var body: some View {
         List {
             Section(state.loggedInUserSummary ?? "") {
-                ForEach(state.availableFeatures, id: \.self) { feature in
-                    Button(feature) {
-                        send(.featureTapped(feature))
+                ForEach(state.availableFeatures) { feature in
+                    Button(feature.title) {
+                        send(.featureTapped(feature.id))
                     }
                 }
             }
@@ -202,8 +227,9 @@ private struct FeatureDetailView: View {
     let send: (NativeAppAction) -> Void
 
     var body: some View {
+        let title = state.availableFeatures.first { $0.id == feature }?.title ?? feature
         List {
-            if feature == "Delivery" {
+            if feature == "delivery" {
                 Section(state.deliveryExperienceName) {
                     ForEach(state.deliveryOrders) { order in
                         VStack(alignment: .leading, spacing: 8) {
@@ -214,10 +240,10 @@ private struct FeatureDetailView: View {
                     }
                 }
             } else {
-                Text(feature)
+                Text(title)
             }
         }
-        .navigationTitle(feature)
+        .navigationTitle(title)
         .toolbar {
             Button("Back") {
                 send(.backTapped)

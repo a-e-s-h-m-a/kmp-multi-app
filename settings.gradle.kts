@@ -29,5 +29,9 @@ dependencyResolutionManagement {
 }
 
 include(":androidApp")
-include(":sharedLogic")
-include(":sharedUI")
+include(":shared:core:model")
+include(":shared:core:config")
+include(":shared:core:analytics")
+include(":shared:features:delivery")
+include(":shared:application")
+include(":shared:ui")

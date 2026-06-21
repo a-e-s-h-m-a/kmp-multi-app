@@ -1,5 +1,4 @@
 import SwiftUI
-import SharedLogic
 
 struct ContentView: View {
     var body: some View {
@@ -7,9 +6,7 @@ struct ContentView: View {
             Text("AppOne")
                 .font(.largeTitle)
                 .bold()
-            Text("The iOS multi-app SwiftUI source samples live in iosApp/SharedIOS, iosApp/AppOne, and iosApp/AppTwo.")
-            Text(Greeting().greet())
-                .foregroundStyle(.secondary)
+            Text("Select the AppOne or AppTwo scheme to run the shared multi-app experience.")
         }
         .padding()
     }

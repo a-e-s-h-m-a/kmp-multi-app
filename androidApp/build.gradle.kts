@@ -12,7 +12,7 @@ kotlin {
     }
 }
 dependencies {
-    implementation(projects.sharedUI)
+    implementation(projects.shared.ui)
 
     implementation(libs.androidx.activity.compose)
 
@@ -21,11 +21,11 @@ dependencies {
 }
 
 android {
-    namespace = "com.example.multiapp"
+    namespace = "com.aeshma.multiapp.android"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.example.multiapp"
+        applicationId = "com.aeshma.multiapp"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
@@ -39,13 +39,13 @@ android {
     productFlavors {
         create("appOne") {
             dimension = "app"
-            applicationId = "com.example.appone"
+            applicationId = "com.aeshma.appone"
             resValue("string", "app_name", "AppOne")
             buildConfigField("String", "APP_ID", "\"AppOne\"")
         }
         create("appTwo") {
             dimension = "app"
-            applicationId = "com.example.apptwo"
+            applicationId = "com.aeshma.apptwo"
             resValue("string", "app_name", "AppTwo")
             buildConfigField("String", "APP_ID", "\"AppTwo\"")
         }
