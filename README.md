@@ -34,6 +34,23 @@ Both applications use the same shared modules. Their identities and user profile
 
 > The feature implementations are present in the shared binary. This sample demonstrates runtime capability-based availability, not per-app binary feature exclusion. Separate per-app dependency graphs or app modules would be required when a feature must be physically absent from one binary.
 
+### App Icons
+
+Each application has its own generated icon and matching iOS accent color:
+
+| App | Icon concept | Android resources | iOS asset catalog |
+|---|---|---|---|
+| AppOne | Emerald location pin and parcel | `androidApp/src/appOne/res` | `iosApp/AppOne/Assets.xcassets` |
+| AppTwo | Blue operations grid and gold check | `androidApp/src/appTwo/res` | `iosApp/AppTwo/Assets.xcassets` |
+
+| AppOne | AppTwo |
+|---|---|
+| <img src="design/app-icons/app-one-master.png" alt="AppOne delivery icon" width="220"> | <img src="design/app-icons/app-two-master.png" alt="AppTwo operations icon" width="220"> |
+
+The original 1254px generated masters are retained in `design/app-icons`. Android contains density-specific legacy icons plus adaptive-icon resources; iOS uses a target-specific 1024px App Store icon. Because each flavor/target owns an `AppIcon` resource with the same logical name, platform manifests and Swift code do not need app-specific icon branches.
+
+The icons were generated with the built-in image generation tool using simple logo prompts: AppOne combines a delivery location pin and parcel on emerald, while AppTwo combines an operations grid and completion check on cobalt. Both prompts requested centered, text-free artwork with sufficient safe space for Android adaptive masks.
+
 ## Architecture Overview
 
 ```mermaid
