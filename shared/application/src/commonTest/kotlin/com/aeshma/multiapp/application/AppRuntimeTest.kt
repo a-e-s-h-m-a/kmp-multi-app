@@ -1,11 +1,21 @@
 package com.aeshma.multiapp.application
 
+import com.aeshma.multiapp.core.analytics.ConsoleAnalyticsClient
+import com.aeshma.multiapp.core.config.LocalAuthRepository
 import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.config.AppCatalog
 import com.aeshma.multiapp.core.config.defaultAppDefinitions
+import com.aeshma.multiapp.feature.delivery.DeliveryPolicyResolver
+import com.aeshma.multiapp.feature.delivery.SampleDeliveryRepository
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.EmptyCoroutineContext
+import kotlin.coroutines.startCoroutine
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class AppRuntimeTest {
     @Test
@@ -14,6 +24,17 @@ class AppRuntimeTest {
 
         assertEquals(AppId.AppTwo, runtime.appId)
         assertEquals("admin", runtime.appDefinition.defaultUsername)
+    }
+
+    @Test
+    fun iosCompositionRootsUseTargetSpecificConfiguration() {
+        val appOne = IOSAppCompositionRoot("AppOne")
+        val appTwo = IOSAppCompositionRoot("AppTwo")
+
+        assertEquals("AppOne", appOne.appName)
+        assertEquals("customer", appOne.defaultUsername)
+        assertEquals("AppTwo", appTwo.appName)
+        assertEquals("admin", appTwo.defaultUsername)
     }
 
     @Test
@@ -37,5 +58,44 @@ class AppRuntimeTest {
                 .map { it.id.value }
             assertEquals(expectedFeatures, actual, "$appId / $username")
         }
+    }
+
+    @Test
+    fun logoutClearsContextAndTracksSessionLifecycle() {
+        val catalog = AppCatalog(defaultAppDefinitions())
+        val analytics = ConsoleAnalyticsClient()
+        val session = AppSession(
+            authRepository = LocalAuthRepository(catalog),
+            featureRegistry = FeatureRegistry(),
+            deliveryPolicyResolver = DeliveryPolicyResolver(),
+            deliveryRepository = SampleDeliveryRepository(),
+            analyticsClient = analytics,
+        )
+
+        runImmediately { session.login(AppId.AppOne, "customer") }
+        assertNotNull(session.currentContext)
+
+        session.logout()
+
+        assertNull(session.currentContext)
+        assertFailsWith<SessionNotStartedException> { session.availableFeatures() }
+        assertEquals(
+            listOf("login_completed", "logout_completed"),
+            analytics.trackedEvents().map { it.name },
+        )
+    }
+
+    private fun <T> runImmediately(block: suspend () -> T): T {
+        var outcome: Result<T>? = null
+        block.startCoroutine(
+            object : Continuation<T> {
+                override val context = EmptyCoroutineContext
+
+                override fun resumeWith(result: Result<T>) {
+                    outcome = result
+                }
+            },
+        )
+        return checkNotNull(outcome) { "Expected the local suspend operation to complete immediately." }.getOrThrow()
     }
 }

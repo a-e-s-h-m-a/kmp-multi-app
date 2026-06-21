@@ -35,6 +35,17 @@ class AppSession(
         return context
     }
 
+    fun logout() {
+        val context = currentContext ?: return
+        analyticsClient.track(
+            AnalyticsEvent(
+                name = "logout_completed",
+                properties = context.analyticsProperties(),
+            ),
+        )
+        currentContext = null
+    }
+
     fun availableFeatures(): List<FeatureDescriptor> =
         featureRegistry.availableFeatures(requireContext())
 

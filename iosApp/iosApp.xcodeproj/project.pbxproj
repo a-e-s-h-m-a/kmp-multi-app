@@ -6,9 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		A10300000000000000000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = A10100000000000000000001 /* ComposableArchitecture */; };
+		A10400000000000000000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = A10200000000000000000001 /* ComposableArchitecture */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
-		DBB2DA03711301A0CA9636E3 /* AppTwo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppTwo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3E3C5461B422857411FB0E99 /* MultiApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MultiApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DBB2DA03711301A0CA9636E3 /* AppTwo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppTwo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F41B7736D342490B11F061B0 /* AppOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -54,21 +59,23 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		90091C3CEAA324A7EBDB6897 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		461418C725CBF38B5C8154DB /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A10300000000000000000001 /* ComposableArchitecture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		59A83EF483D31E7823C36437 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A10400000000000000000001 /* ComposableArchitecture in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		90091C3CEAA324A7EBDB6897 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -103,6 +110,56 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3A3226B239038FBE187A6E28 /* AppTwo */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 274063300E424B52F99A3B73 /* Build configuration list for PBXNativeTarget "AppTwo" */;
+			buildPhases = (
+				C455C54764EA2E84CD69162F /* Compile Kotlin Framework */,
+				93EC5B171A7EAD3256E223FA /* Sources */,
+				59A83EF483D31E7823C36437 /* Frameworks */,
+				49311A3D94916DFC44B55736 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				8DA2051B60E4DBEF0F47E066 /* AppTwo */,
+				DA9EDE5CBCA0D2A7F5635DE4 /* SharedIOS */,
+			);
+			name = AppTwo;
+			packageProductDependencies = (
+				A10200000000000000000001 /* ComposableArchitecture */,
+			);
+			productName = AppTwo;
+			productReference = DBB2DA03711301A0CA9636E3 /* AppTwo.app */;
+			productType = "com.apple.product-type.application";
+		};
+		3C5FDB67E3716F8E1B8647D1 /* AppOne */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2C4470605414849732483137 /* Build configuration list for PBXNativeTarget "AppOne" */;
+			buildPhases = (
+				E03DBF03E77E3FE10E861B4D /* Compile Kotlin Framework */,
+				019D24598F92A2D6E76FD9B6 /* Sources */,
+				461418C725CBF38B5C8154DB /* Frameworks */,
+				F2F5E0FEC7BB124AD9A181AB /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B87BA6BBCFDF8A7136E8F0D7 /* AppOne */,
+				DA9EDE5CBCA0D2A7F5635DE4 /* SharedIOS */,
+			);
+			name = AppOne;
+			packageProductDependencies = (
+				A10100000000000000000001 /* ComposableArchitecture */,
+			);
+			productName = AppOne;
+			productReference = F41B7736D342490B11F061B0 /* AppOne.app */;
+			productType = "com.apple.product-type.application";
+		};
 		785DF60CF0A9A385D43EC69F /* iosApp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = DE0DA6559EB76AF5B47802D7 /* Build configuration list for PBXNativeTarget "iosApp" */;
@@ -124,54 +181,6 @@
 			);
 			productName = iosApp;
 			productReference = 3E3C5461B422857411FB0E99 /* MultiApp.app */;
-			productType = "com.apple.product-type.application";
-		};
-		3A3226B239038FBE187A6E28 /* AppTwo */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 274063300E424B52F99A3B73 /* Build configuration list for PBXNativeTarget "AppTwo" */;
-			buildPhases = (
-				C455C54764EA2E84CD69162F /* Compile Kotlin Framework */,
-				93EC5B171A7EAD3256E223FA /* Sources */,
-				59A83EF483D31E7823C36437 /* Frameworks */,
-				49311A3D94916DFC44B55736 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				DA9EDE5CBCA0D2A7F5635DE4 /* SharedIOS */,
-				8DA2051B60E4DBEF0F47E066 /* AppTwo */,
-			);
-			name = AppTwo;
-			packageProductDependencies = (
-			);
-			productName = AppTwo;
-			productReference = DBB2DA03711301A0CA9636E3 /* AppTwo.app */;
-			productType = "com.apple.product-type.application";
-		};
-		3C5FDB67E3716F8E1B8647D1 /* AppOne */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 2C4470605414849732483137 /* Build configuration list for PBXNativeTarget "AppOne" */;
-			buildPhases = (
-				E03DBF03E77E3FE10E861B4D /* Compile Kotlin Framework */,
-				019D24598F92A2D6E76FD9B6 /* Sources */,
-				461418C725CBF38B5C8154DB /* Frameworks */,
-				F2F5E0FEC7BB124AD9A181AB /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				DA9EDE5CBCA0D2A7F5635DE4 /* SharedIOS */,
-				B87BA6BBCFDF8A7136E8F0D7 /* AppOne */,
-			);
-			name = AppOne;
-			packageProductDependencies = (
-			);
-			productName = AppOne;
-			productReference = F41B7736D342490B11F061B0 /* AppOne.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -204,6 +213,9 @@
 			);
 			mainGroup = F246975E84CFFEF7EDD485E7;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				A10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 1AE61815E050C583989B9C2F /* Products */;
 			projectDirPath = "";
@@ -217,14 +229,14 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		78A21EF20FA3C75BCFDDF508 /* Resources */ = {
+		49311A3D94916DFC44B55736 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		49311A3D94916DFC44B55736 /* Resources */ = {
+		78A21EF20FA3C75BCFDDF508 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -241,25 +253,6 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		E417F2964AD154C3E40E3536 /* Compile Kotlin Framework */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Compile Kotlin Framework";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\nexport JAVA_HOME=\"/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home\"\nexport PATH=\"$JAVA_HOME/bin:$PATH\"\n\ncd \"$SRCROOT/..\"\n./gradlew :shared:application:embedAndSignAppleFrameworkForXcode\n";
-		};
 		C455C54764EA2E84CD69162F /* Compile Kotlin Framework */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
@@ -298,17 +291,36 @@
 			shellPath = /bin/sh;
 			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\nexport JAVA_HOME=\"/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home\"\nexport PATH=\"$JAVA_HOME/bin:$PATH\"\n\ncd \"$SRCROOT/..\"\n./gradlew :shared:application:embedAndSignAppleFrameworkForXcode\n";
 		};
+		E417F2964AD154C3E40E3536 /* Compile Kotlin Framework */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Compile Kotlin Framework";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\nexport JAVA_HOME=\"/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home\"\nexport PATH=\"$JAVA_HOME/bin:$PATH\"\n\ncd \"$SRCROOT/..\"\n./gradlew :shared:application:embedAndSignAppleFrameworkForXcode\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		24D0DC91DB4EB611DE30FC0C /* Sources */ = {
+		019D24598F92A2D6E76FD9B6 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		019D24598F92A2D6E76FD9B6 /* Sources */ = {
+		24D0DC91DB4EB611DE30FC0C /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -383,6 +395,36 @@
 			};
 			name = Release;
 		};
+		44BBAF189AC530E93BCB1E39 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = AppTwo;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aeshma.apptwo;
+				PRODUCT_NAME = AppTwo;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		48101826AA622199A9A62D43 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -410,6 +452,36 @@
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
+		};
+		5B911ECC728A4D09EAA39631 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = AppOne;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aeshma.appone;
+				PRODUCT_NAME = AppOne;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
 		};
 		AA3C8CC31264EF2567E4FF07 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -504,66 +576,6 @@
 			};
 			name = Debug;
 		};
-		44BBAF189AC530E93BCB1E39 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "${TEAM_ID}";
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = AppTwo;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.aeshma.apptwo;
-				PRODUCT_NAME = AppTwo;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		5B911ECC728A4D09EAA39631 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ARCHS = arm64;
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "${TEAM_ID}";
-				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = AppOne;
-				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
-				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
-				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.aeshma.appone;
-				PRODUCT_NAME = AppOne;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
 		E8C00BA536C2991A9D9C0EFB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -627,24 +639,6 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		B2F6E41C484D05D0E858D101 /* Build configuration list for PBXProject "iosApp" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				B57D6B1571FB6B2322AF8466 /* Debug */,
-				28142ED54FA950F554687203 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		DE0DA6559EB76AF5B47802D7 /* Build configuration list for PBXNativeTarget "iosApp" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				AA3C8CC31264EF2567E4FF07 /* Debug */,
-				48101826AA622199A9A62D43 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		274063300E424B52F99A3B73 /* Build configuration list for PBXNativeTarget "AppTwo" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -663,7 +657,49 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		B2F6E41C484D05D0E858D101 /* Build configuration list for PBXProject "iosApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B57D6B1571FB6B2322AF8466 /* Debug */,
+				28142ED54FA950F554687203 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DE0DA6559EB76AF5B47802D7 /* Build configuration list for PBXNativeTarget "iosApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA3C8CC31264EF2567E4FF07 /* Debug */,
+				48101826AA622199A9A62D43 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		A10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-composable-architecture";
+			requirement = {
+				kind = exactVersion;
+				version = 1.25.5;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		A10100000000000000000001 /* ComposableArchitecture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
+			productName = ComposableArchitecture;
+		};
+		A10200000000000000000001 /* ComposableArchitecture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
+			productName = ComposableArchitecture;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = AE59821D04FC9A50E9D34068 /* Project object */;
 }

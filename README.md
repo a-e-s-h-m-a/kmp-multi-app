@@ -11,15 +11,31 @@ The important distinction is that this is **not a single app with an app switche
 - Shared configuration converts app identity and user identity into typed capabilities.
 - Features and actions are derived from capabilities rather than scattered app-name checks.
 
+## Current Status
+
+The architecture is implemented end to end on both platforms:
+
+| Area | Current implementation | Verification |
+|---|---|---|
+| Android products | `appOne` and `appTwo` product flavors inject `BuildConfig.APP_ID` | Both debug variants compile |
+| iOS products | Independent AppOne and AppTwo targets/schemes inject `appIdName` | Both simulator builds pass |
+| Shared composition | Metro builds `AppGraph`, `AppRuntime` and `AppSession` | Shared application tests pass |
+| iOS presentation | SwiftUI driven by a real TCA reducer and Point-Free Dependencies | Local TCA package tests pass |
+| Kotlin/Swift interop | SKIE exposes Kotlin suspend APIs as Swift `async` functions | Simulator framework links successfully |
+| Session lifecycle | Login and logout update the same shared `AppSession` | Lifecycle and cancellation tests pass |
+
+The earlier limitations no longer apply: iOS does not mirror feature or experience rules in Swift, and it no longer uses a hand-written TCA-shaped store or a continuation-based Kotlin callback adapter. Swift calls the shared composition root through an actor-isolated dependency client.
+
 ## Technology
 
 | Area | Technology |
 |---|---|
-| Shared language | Kotlin 2.4.0 |
+| Shared language | Kotlin 2.3.21 |
 | Build system | Gradle 9.5.0 |
 | Android | Android Gradle Plugin 9.2.1, Jetpack Compose |
 | Shared UI toolkit | Compose Multiplatform 1.11.1 |
-| iOS | SwiftUI with a Kotlin facade |
+| iOS | SwiftUI, The Composable Architecture 1.25.5, Dependencies 1.14.1 |
+| Kotlin/Swift interop | SKIE 0.10.12 |
 | Dependency injection | Metro 1.1.1 |
 | Shared targets | Android, iOS arm64, iOS Simulator arm64 |
 
@@ -386,7 +402,7 @@ DeliveryView(
 )
 ```
 
-The same rule applies on iOS. `IOSAppFacade` returns `SharedSessionSnapshot`, containing already-selected features, experience name and order actions. SwiftUI maps that snapshot into native state and renders it.
+The same rule applies on iOS. `IOSAppCompositionRoot` returns `SharedSessionSnapshot`, containing already-selected features, experience name and order actions. The TCA dependency client maps that snapshot into native state and SwiftUI renders it.
 
 The UI may switch on stable `FeatureId` for navigation to the correct screen. It should not switch on `AppId`, `UserType` or raw permission strings to decide availability or behavior.
 
@@ -470,8 +486,11 @@ The feature does not have to be Delivery. The same pattern works for:
 ```mermaid
 flowchart LR
     Android["Android flavor"] --> Identity["AppId"]
-    IOS["iOS target"] --> Facade["IOSAppFacade"]
-    Facade --> Identity
+    IOS["iOS target"] --> TCA["TCA Store"]
+    TCA --> Contract["MultiAppClient contract"]
+    Contract --> Gateway["actor-isolated live gateway"]
+    Gateway --> IOSRoot["IOSAppCompositionRoot"]
+    IOSRoot --> Identity
     Identity --> Runtime["AppRuntime"]
     Runtime --> Graph["Metro AppGraph"]
     Graph --> Catalog["AppCatalog"]
@@ -482,7 +501,7 @@ flowchart LR
     Context --> Resolver["DeliveryPolicyResolver"]
     Registry --> Features["Available features"]
     Resolver --> Experience["Delivery experience and actions"]
-    Features --> NativeUI["Compose or SwiftUI"]
+    Features --> NativeUI["Compose or TCA-driven SwiftUI"]
     Experience --> NativeUI
 ```
 
@@ -496,7 +515,14 @@ androidApp/
 
 iosApp/
   AppOne and AppTwo SwiftUI targets
-  Shared SwiftUI state, actions, store and views
+  SharedIOS/
+    NativeModels.swift         Native snapshot models
+    MultiAppClient.swift       TCA dependency contract
+    LiveMultiAppClient.swift   Actor-isolated SKIE/KMP implementation
+    MultiAppFeature.swift      Reducer, state, actions and effects
+    MultiAppView.swift         SwiftUI rendering
+  SharedIOSTests/              TCA reducer tests
+  Package.swift                Local testable SharedIOSCore package
 
 shared/
   core/
@@ -505,7 +531,7 @@ shared/
     analytics/      Analytics interface and local implementation
   features/
     delivery/       Delivery models, repository, policies and resolver
-  application/      Session, feature registry, Metro graph, snapshots and iOS facade
+  application/      Session, feature registry, Metro graph, snapshots and iOS composition root
   ui/               Android Compose presentation
 ```
 
@@ -588,16 +614,18 @@ MultiAppRootView(appIdName: "AppOne")
 MultiAppRootView(appIdName: "AppTwo")
 ```
 
-`NativeAppEnvironment` creates `IOSAppFacade`, which converts the supplied name into the shared `AppId` and creates the same `AppRuntime` used by Android.
+`MultiAppRootView` creates the live `MultiAppClient` and injects it into TCA's `DependencyValues`. Its live implementation creates an `IOSAppGateway` actor, which owns `IOSAppCompositionRoot`. The composition root converts the supplied name into the shared `AppId` and creates the same `AppRuntime` used by Android.
 
 ```mermaid
 flowchart LR
     Scheme["AppOne or AppTwo scheme"] --> Target["Matching Xcode target"]
     Target --> Entry["AppOneApp or AppTwoApp"]
     Entry --> Root["MultiAppRootView appIdName"]
-    Root --> Environment["NativeAppEnvironment"]
-    Environment --> Facade["IOSAppFacade"]
-    Facade --> Runtime["createAppRuntime AppId"]
+    Root --> Store["TCA Store and MultiAppFeature"]
+    Store --> Client["MultiAppClient dependency"]
+    Client --> Gateway["IOSAppGateway actor"]
+    Gateway --> Composition["IOSAppCompositionRoot"]
+    Composition --> Runtime["createAppRuntime AppId"]
 ```
 
 ## Runtime Composition With Metro
@@ -802,52 +830,75 @@ The resolver checks `DeliveryMode`, not AppOne/AppTwo. AppThree could reuse `Cus
 
 ## Login And Session Flow
 
+The sequence below shows the current iOS login path. Android uses the same `AppSession`, registry and policy resolver directly through `shared:ui`.
+
 ```mermaid
 sequenceDiagram
-    participant UI as "Compose or SwiftUI"
-    participant Runtime as "AppRuntime"
+    participant UI as "SwiftUI and TCA"
+    participant Client as "MultiAppClient actor"
+    participant Root as "IOSAppCompositionRoot"
     participant Session as "AppSession"
     participant Auth as "AuthRepository"
     participant Catalog as "AppCatalog"
     participant Registry as "FeatureRegistry"
     participant Policy as "DeliveryPolicyResolver"
+    participant Mapper as "SessionSnapshotMapper"
 
-    UI->>Runtime: "Selected app identity"
-    UI->>Session: "login(appId, username)"
+    UI->>Client: "login(username)"
+    Client->>Root: "SKIE async login(username)"
+    Root->>Session: "login(appId, username)"
     Session->>Auth: "login(appId, username)"
     Auth->>Catalog: "contextFor(appId, username)"
     Catalog-->>Auth: "Typed AppContext"
     Auth-->>Session: "AppContext"
     Session->>Session: "Store current context and track analytics"
-    UI->>Registry: "availableFeatures(context)"
-    Registry-->>UI: "Feature descriptors"
-    UI->>Policy: "resolve(context)"
-    Policy-->>UI: "DeliveryPolicy"
+    Root->>Mapper: "map(context, session)"
+    Mapper->>Session: "availableFeatures()"
+    Session->>Registry: "availableFeatures(context)"
+    Registry-->>Session: "Feature descriptors"
+    Mapper->>Session: "deliveryPolicy()"
+    Session->>Policy: "resolve(context)"
+    Policy-->>Session: "DeliveryPolicy"
+    Mapper-->>Root: "SharedSessionSnapshot"
+    Root-->>Client: "SharedSessionSnapshot"
+    Client-->>UI: "NativeSessionSnapshot"
 ```
 
-`AppSession` is the application-facing API. It owns the current context, exposes available features, delivery policy and sample orders, and records login/feature analytics through `AnalyticsClient`.
+`AppSession` is the application-facing API. It owns the current context, exposes available features, delivery policy and sample orders, and records login, logout and feature analytics through `AnalyticsClient`.
 
-## iOS Facade And Snapshots
+## iOS Composition With TCA, Dependencies And SKIE
 
-Swift could call every Kotlin repository and policy directly, but that would expose too much KMP implementation detail. `IOSAppFacade` provides one small boundary:
+Swift should not call every Kotlin repository and policy independently because that would recreate orchestration in the platform layer. `IOSAppCompositionRoot` owns the shared `AppRuntime` and `AppSession`, and exposes one small snapshot boundary:
 
 ```kotlin
-class IOSAppFacade(appIdName: String) {
+class IOSAppCompositionRoot(appIdName: String) {
+    private val runtime = createAppRuntime(AppId.fromExternalName(appIdName))
+
     val appName: String
     val defaultUsername: String
     val supportedUsernames: List<String>
 
-    suspend fun login(username: String): SharedSessionSnapshot
+    suspend fun login(username: String): SharedSessionSnapshot {
+        val context = runtime.session.login(runtime.appId, username)
+        return snapshotMapper.map(context, runtime.session)
+    }
+
+    fun logout() {
+        runtime.session.logout()
+    }
 }
 ```
 
-The facade:
+The composition root:
 
 1. Creates the shared runtime for the selected app.
 2. Exposes usernames from the app definition.
-3. Runs shared login.
+3. Runs login through the shared `AppSession`.
 4. Resolves features and delivery policies.
 5. Maps Kotlin domain objects into immutable Swift-friendly snapshots.
+6. Clears the shared `AppSession` when native logout occurs.
+
+`IOSAppFacade` remains as a deprecated compatibility wrapper, but new Swift code calls `IOSAppCompositionRoot`.
 
 ```text
 SharedSessionSnapshot
@@ -863,7 +914,189 @@ SharedSessionSnapshot
     actions[]
 ```
 
-SwiftUI only renders the snapshot. It does not contain AppOne/AppTwo permission matrices or delivery action rules.
+SKIE is applied only to `shared:application`, the module that produces `SharedLogic.framework`:
+
+```kotlin
+plugins {
+    alias(libs.plugins.kotlinMultiplatform)
+    alias(libs.plugins.skie)
+}
+```
+
+SKIE generates a Swift concurrency overlay for Kotlin suspend functions. The Swift dependency client therefore uses normal `async`/`await`; there is no callback adapter or `withCheckedThrowingContinuation` in application code:
+
+```swift
+let snapshot = try await compositionRoot.login(username: username)
+```
+
+`LiveMultiAppClient` owns the composition root inside an actor. This serializes access to the mutable shared session without relying on `@unchecked Sendable`.
+
+```swift
+private actor IOSAppGateway {
+    private let compositionRoot: IOSAppCompositionRoot
+    nonisolated let appName: String
+    nonisolated let defaultUsername: String
+    nonisolated let supportedUsernames: [String]
+
+    init(appIdName: String) {
+        let root = IOSAppCompositionRoot(appIdName: appIdName)
+        compositionRoot = root
+        appName = root.appName
+        defaultUsername = root.defaultUsername
+        supportedUsernames = root.supportedUsernames
+    }
+
+    func login(username: String) async throws -> NativeSessionSnapshot {
+        let snapshot = try await compositionRoot.login(username: username)
+        return NativeSessionSnapshot(
+            userSummary: snapshot.userSummary,
+            availableFeatures: snapshot.availableFeatures.map {
+                NativeFeature(id: $0.id, title: $0.title)
+            },
+            deliveryExperienceName: snapshot.deliveryExperienceName,
+            deliveryOrders: snapshot.deliveryOrders.map {
+                NativeDeliveryOrder(
+                    id: $0.id,
+                    title: $0.title,
+                    status: $0.status,
+                    actions: $0.actions
+                )
+            }
+        )
+    }
+
+    func logout() {
+        compositionRoot.logout()
+    }
+}
+```
+
+Only immutable app metadata is exposed as `nonisolated`. All operations touching `AppSession` remain actor-isolated.
+
+`MultiAppClient` is the Point-Free Dependencies boundary. It hides KMP types from the reducer and makes the effect replaceable in tests:
+
+```swift
+struct MultiAppClient: Sendable {
+    let appName: String
+    let defaultUsername: String
+    let supportedUsernames: [String]
+    var login: @Sendable (String) async throws -> NativeSessionSnapshot
+    var logout: @Sendable () async -> Void
+}
+
+extension DependencyValues {
+    var multiAppClient: MultiAppClient {
+        get { self[MultiAppClientKey.self] }
+        set { self[MultiAppClientKey.self] = newValue }
+    }
+}
+```
+
+Each target injects its app name at the root. `MultiAppRootView` creates one live client and installs it into the TCA store:
+
+```swift
+let client = MultiAppClient.live(appIdName: appIdName)
+
+store = Store(
+    initialState: MultiAppFeature.State(
+        appName: client.appName,
+        supportedUsernames: client.supportedUsernames,
+        selectedUsername: client.defaultUsername
+    )
+) {
+    MultiAppFeature()
+} withDependencies: {
+    $0.multiAppClient = client
+}
+```
+
+`MultiAppFeature` owns state transitions and asynchronous effects. Login asks only the injected client for a shared snapshot:
+
+```swift
+@Reducer
+struct MultiAppFeature {
+    @Dependency(\.multiAppClient) private var client
+
+    var body: some ReducerOf<Self> {
+        Reduce { state, action in
+            switch action {
+            case .loginTapped:
+                state.isLoading = true
+                let username = state.selectedUsername
+                return .run { [client] send in
+                    do {
+                        await send(.loginSucceeded(try await client.login(username)))
+                    } catch {
+                        guard !Task.isCancelled else { return }
+                        await send(.loginFailed(error.localizedDescription))
+                    }
+                }
+                .cancellable(id: CancelID.login, cancelInFlight: true)
+
+            case let .loginSucceeded(snapshot):
+                state.availableFeatures = snapshot.availableFeatures
+                state.deliveryExperienceName = snapshot.deliveryExperienceName
+                state.deliveryOrders = snapshot.deliveryOrders
+                state.selectedScreen = .features
+                state.isLoading = false
+                return .none
+
+            case .logoutTapped:
+                state.loggedInUserSummary = nil
+                state.availableFeatures = []
+                state.loginError = nil
+                state.deliveryExperienceName = "Delivery Disabled"
+                state.deliveryOrders = []
+                state.isLoading = false
+                state.selectedScreen = .login
+                return .concatenate(
+                    .cancel(id: CancelID.login),
+                    .run { [client] _ in await client.logout() }
+                )
+
+            default:
+                return .none
+            }
+        }
+    }
+}
+```
+
+The complete iOS path is:
+
+```text
+Xcode target
+    -> appIdName
+    -> TCA Store installs MultiAppClient
+    -> actor-isolated LiveMultiAppClient owns IOSAppCompositionRoot
+    -> SKIE exposes compositionRoot.login as async
+    -> AppSession creates AppContext and resolves shared rules
+    -> SharedSessionSnapshot returns selected features and behavior
+    -> reducer updates State
+    -> SwiftUI renders State and sends Actions
+```
+
+SwiftUI contains no AppOne/AppTwo permission matrices, user-role branching or delivery action rules. TCA controls presentation flow; shared Kotlin controls product configuration and business behavior.
+
+The reducer, native models and dependency contract also form the `SharedIOSCore` local Swift package. `LiveMultiAppClient.swift` and `MultiAppView.swift` are excluded from that package, allowing reducer tests to run on macOS without linking an application host or the KMP framework. The Xcode targets continue compiling all five `SharedIOS` source files, so production still uses the live actor and shared Kotlin runtime.
+
+### Login And Logout Lifecycle
+
+```text
+loginTapped
+    -> cancel any older login effect
+    -> actor calls SKIE async login
+    -> AppSession stores AppContext
+    -> reducer receives loginSucceeded or loginFailed
+
+logoutTapped
+    -> immediately clear presentation state
+    -> cancel an in-flight login effect
+    -> actor calls IOSAppCompositionRoot.logout()
+    -> AppSession clears currentContext and records logout analytics
+```
+
+This prevents a late login response from reopening the feature screen after the user has logged out.
 
 ## Running Android Apps In Android Studio
 
@@ -937,6 +1170,7 @@ Compile only:
 - Full Xcode installation.
 - An installed iOS Simulator runtime.
 - JDK 21 available to the Xcode build script. The current script expects Homebrew OpenJDK at `/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home`; update the Xcode build phase if your JDK is elsewhere.
+- Allow Xcode to resolve the pinned `ComposableArchitecture` Swift package and approve its Point-Free compiler macros when prompted.
 
 Make sure command-line tools point to full Xcode rather than only `/Library/Developer/CommandLineTools`:
 
@@ -993,6 +1227,26 @@ The produced framework is named `SharedLogic.framework` and is imported by Swift
 import SharedLogic
 ```
 
+SKIE compiles its Swift concurrency overlay into the same framework, so no extra iOS package or runtime setup is required for SKIE.
+
+Command-line simulator builds for both products:
+
+```bash
+xcodebuild -project iosApp/iosApp.xcodeproj \
+  -scheme AppOne \
+  -destination 'generic/platform=iOS Simulator' \
+  -skipMacroValidation \
+  CODE_SIGNING_ALLOWED=NO build
+
+xcodebuild -project iosApp/iosApp.xcodeproj \
+  -scheme AppTwo \
+  -destination 'generic/platform=iOS Simulator' \
+  -skipMacroValidation \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+Do not add a global `-sdk iphonesimulator` argument when building TCA from the command line. Xcode must build the app for the simulator while building compiler macro executables for the Mac host.
+
 ### iOS Troubleshooting
 
 If Xcode reports stale Kotlin/Swift symbols:
@@ -1000,6 +1254,18 @@ If Xcode reports stale Kotlin/Swift symbols:
 1. Select **Product > Clean Build Folder** using `Shift+Cmd+K`.
 2. Build again.
 3. Confirm `SharedLogic.framework` was rebuilt by the Gradle build phase.
+
+Some Xcode 26.x installations have a SwiftSyntax prebuilt-module issue that reports missing `SwiftSyntax`, `SwiftCompilerPlugin`, or malformed macro responses. Disable the prebuilt optimization and clear this project's DerivedData before rebuilding:
+
+```bash
+defaults write com.apple.dt.Xcode IDEPackageEnablePrebuilts -bool NO
+```
+
+This affects only Swift package build performance; it does not change the application architecture or runtime. To restore Xcode's default later:
+
+```bash
+defaults delete com.apple.dt.Xcode IDEPackageEnablePrebuilts
+```
 
 Compile the shared iOS Kotlin target directly:
 
@@ -1017,6 +1283,16 @@ If `xcrun` cannot find `xcodebuild`, correct `xcode-select` using the commands a
 
 ## Testing
 
+### Test Layers
+
+| Layer | Command | What it validates |
+|---|---|---|
+| Shared configuration | `:shared:core:config:testAndroidHostTest` | App definitions, profiles and capability mapping |
+| Delivery feature | `:shared:features:delivery:testAndroidHostTest` | Policy selection and allowed actions |
+| Shared application | `:shared:application:testAndroidHostTest` | Metro runtime, iOS composition metadata and session lifecycle |
+| iOS TCA core | `xcrun swift test --package-path iosApp` | Reducer state, effects, dependency calls and cancellation |
+| Platform integration | Android compile tasks and Xcode schemes | Flavor/target wiring and framework integration |
+
 Run the focused shared tests:
 
 ```bash
@@ -1024,6 +1300,17 @@ Run the focused shared tests:
 ./gradlew :shared:features:delivery:testAndroidHostTest
 ./gradlew :shared:application:testAndroidHostTest
 ```
+
+Run the iOS TCA reducer tests on macOS:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcrun swift test --package-path iosApp
+```
+
+The local package reuses `NativeModels.swift`, `MultiAppClient.swift` and `MultiAppFeature.swift`. The live SKIE gateway and SwiftUI views remain owned by the Xcode application targets.
+
+The current TCA suite contains five tests and runs without an iOS simulator because the reducer core has no dependency on SwiftUI or `SharedLogic.framework`.
 
 Run tests and compile every active app path:
 
@@ -1035,6 +1322,24 @@ Run tests and compile every active app path:
   :shared:application:compileKotlinIosSimulatorArm64 \
   :androidApp:compileAppOneDebugKotlin \
   :androidApp:compileAppTwoDebugKotlin
+```
+
+Build both iOS products after linking the framework:
+
+```bash
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcodebuild -project iosApp/iosApp.xcodeproj \
+  -scheme AppOne \
+  -destination 'generic/platform=iOS Simulator' \
+  -skipMacroValidation \
+  CODE_SIGNING_ALLOWED=NO build
+
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcodebuild -project iosApp/iosApp.xcodeproj \
+  -scheme AppTwo \
+  -destination 'generic/platform=iOS Simulator' \
+  -skipMacroValidation \
+  CODE_SIGNING_ALLOWED=NO build
 ```
 
 Current tests cover:
@@ -1049,6 +1354,12 @@ Current tests cover:
 - Stable feature IDs.
 - Table-driven feature availability.
 - Metro graph creation for the selected app.
+- AppOne/AppTwo iOS composition-root metadata.
+- Shared logout clearing `AppSession` and recording lifecycle analytics.
+- TCA login success and failure state transitions.
+- Native logout invoking the dependency client.
+- Logout cancelling an in-flight login effect.
+- Feature detail navigation and back navigation.
 
 ## Adding A New App
 

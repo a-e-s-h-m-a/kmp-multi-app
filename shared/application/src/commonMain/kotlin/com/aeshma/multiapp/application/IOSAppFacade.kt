@@ -1,17 +1,20 @@
 package com.aeshma.multiapp.application
 
-import com.aeshma.multiapp.core.model.AppId
-
+@Deprecated(
+    message = "Use IOSAppCompositionRoot.",
+    replaceWith = ReplaceWith("IOSAppCompositionRoot(appIdName)"),
+)
 class IOSAppFacade(appIdName: String) {
-    private val runtime = createAppRuntime(AppId.fromExternalName(appIdName))
-    private val snapshotMapper = SessionSnapshotMapper()
+    private val compositionRoot = IOSAppCompositionRoot(appIdName)
 
-    val appName: String = runtime.appDefinition.displayName
-    val defaultUsername: String = runtime.appDefinition.defaultUsername
-    val supportedUsernames: List<String> = runtime.appDefinition.supportedUsernames
+    val appName: String = compositionRoot.appName
+    val defaultUsername: String = compositionRoot.defaultUsername
+    val supportedUsernames: List<String> = compositionRoot.supportedUsernames
 
-    suspend fun login(username: String): SharedSessionSnapshot {
-        val context = runtime.session.login(runtime.appId, username)
-        return snapshotMapper.map(context, runtime.session)
+    suspend fun login(username: String): SharedSessionSnapshot =
+        compositionRoot.login(username)
+
+    fun logout() {
+        compositionRoot.logout()
     }
 }
