@@ -88,11 +88,13 @@ iOS has two native entry points:
 
 ```swift
 // iosApp/AppOne/AppOneApp.swift
-MultiAppRootView(appIdName: "AppOne")
+private let store = MultiAppStoreFactory.make(appIdName: "AppOne")
 
 // iosApp/AppTwo/AppTwoApp.swift
-MultiAppRootView(appIdName: "AppTwo")
+private let store = MultiAppStoreFactory.make(appIdName: "AppTwo")
 ```
+
+Each `@main` app owns its store and passes it to `MultiAppRootView`. The store factory is the native composition boundary: it creates the product-specific live KMP client, derives initial state from app metadata, and injects that client into TCA. The root view only renders the supplied store.
 
 `AppId` is used at composition and configuration boundaries. It should not become a global UI switch.
 
@@ -368,6 +370,7 @@ iosApp/
     NativeModels.swift        Native presentation snapshots
     MultiAppClient.swift      TCA dependency contract
     LiveMultiAppClient.swift  Actor-isolated KMP implementation
+    MultiAppStoreFactory.swift Native store and dependency composition
     MultiAppFeature.swift     TCA reducer, state and actions
     MultiAppView.swift        SwiftUI views
   SharedIOSTests/             TCA reducer tests

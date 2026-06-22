@@ -29,6 +29,7 @@ let package = Package(
             path: "SharedIOS",
             exclude: [
                 "LiveMultiAppClient.swift",
+                "MultiAppStoreFactory.swift",
                 "MultiAppView.swift",
             ]
         ),

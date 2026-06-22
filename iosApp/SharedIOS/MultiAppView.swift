@@ -4,21 +4,6 @@ import SwiftUI
 struct MultiAppRootView: View {
     let store: StoreOf<MultiAppFeature>
 
-    init(appIdName: String) {
-        let client = MultiAppClient.live(appIdName: appIdName)
-        store = Store(
-            initialState: MultiAppFeature.State(
-                appName: client.appName,
-                supportedUsernames: client.supportedUsernames,
-                selectedUsername: client.defaultUsername
-            )
-        ) {
-            MultiAppFeature()
-        } withDependencies: {
-            $0.multiAppClient = client
-        }
-    }
-
     var body: some View {
         NavigationStack {
             switch store.selectedScreen {
