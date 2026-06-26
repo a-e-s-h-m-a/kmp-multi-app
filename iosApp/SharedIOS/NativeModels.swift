@@ -9,6 +9,8 @@ enum NativeScreen: Equatable, Sendable {
 struct NativeFeature: Identifiable, Equatable, Sendable {
     let id: String
     let title: String
+    let requiredPermission: String
+    let enabledTweaks: [String]
 }
 
 struct NativeDeliveryOrder: Identifiable, Equatable, Sendable {

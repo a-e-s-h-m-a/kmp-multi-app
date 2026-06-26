@@ -159,8 +159,18 @@ private extension NativeSessionSnapshot {
     static let customerFixture = Self(
         userSummary: "Customer",
         availableFeatures: [
-            NativeFeature(id: "home", title: "Home"),
-            NativeFeature(id: "delivery", title: "Delivery"),
+            NativeFeature(
+                id: "orders",
+                title: "Orders",
+                requiredPermission: "orders.view",
+                enabledTweaks: ["orders.edit"]
+            ),
+            NativeFeature(
+                id: "delivery",
+                title: "Delivery",
+                requiredPermission: "delivery.view",
+                enabledTweaks: ["delivery.status", "delivery.map"]
+            ),
         ],
         deliveryExperienceName: "Customer Delivery",
         deliveryOrders: [

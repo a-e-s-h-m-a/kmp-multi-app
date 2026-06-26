@@ -1,6 +1,8 @@
 package com.aeshma.multiapp.core.config
 
 import com.aeshma.multiapp.core.model.AppId
+import com.aeshma.multiapp.core.model.BusinessUnitId
+import com.aeshma.multiapp.core.model.CommerceCapabilities
 import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.core.model.UserCapabilities
 import com.aeshma.multiapp.core.model.UserType
@@ -67,10 +69,32 @@ class AppCatalogTest {
     }
 
     @Test
+    fun hardCodedExperienceCatalogDefinesBoutiqueAndShopExperiences() {
+        val experienceCatalog = ExperienceCatalog(defaultExperienceDefinitions())
+
+        assertEquals("Newport&Buckhead", experienceCatalog.definition(AppId.AppOne).displayName)
+        assertEquals("SSMG Boutique Theme", experienceCatalog.definition(AppId.AppOne).theme)
+        assertEquals(setOf(BusinessUnitId.SSMG), experienceCatalog.definition(AppId.AppOne).supportedBusinessUnits)
+
+        assertEquals("Shop", experienceCatalog.definition(AppId.AppTwo).displayName)
+        assertEquals("Broadline Theme", experienceCatalog.definition(AppId.AppTwo).theme)
+        assertEquals(setOf(BusinessUnitId.USBL), experienceCatalog.definition(AppId.AppTwo).supportedBusinessUnits)
+    }
+
+    @Test
+    fun businessUnitCatalogDefinesAllowedExperienceCombinations() {
+        val businessUnitCatalog = BusinessUnitCatalog(defaultBusinessUnitDefinitions())
+
+        assertEquals(setOf(AppId.AppOne), businessUnitCatalog.definition(BusinessUnitId.SSMG).allowedExperiences)
+        assertEquals(setOf(AppId.AppTwo), businessUnitCatalog.definition(BusinessUnitId.USBL).allowedExperiences)
+    }
+
+    @Test
     fun catalogSupportsAThirdAppWithoutCoreChanges() {
         val appThree = AppId("AppThree")
+        val appThreeBu = BusinessUnitId("APP_THREE_BU")
         val customCatalog = AppCatalog(
-            listOf(
+            definitions = listOf(
                 AppDefinition(
                     id = appThree,
                     displayName = "App Three",
@@ -78,6 +102,29 @@ class AppCatalogTest {
                     defaultUsername = "viewer",
                     profiles = mapOf(
                         "viewer" to UserProfile(UserType.Customer, UserCapabilities.none()),
+                    ),
+                ),
+            ),
+            experienceCatalog = ExperienceCatalog(
+                listOf(
+                    ExperienceDefinition(
+                        appId = appThree,
+                        displayName = "App Three Experience",
+                        url = null,
+                        logo = null,
+                        allowedSites = setOf("APP3"),
+                        theme = "App Three Theme",
+                        commerceCapabilities = CommerceCapabilities.of("orders.view"),
+                        supportedBusinessUnits = setOf(appThreeBu),
+                    ),
+                ),
+            ),
+            businessUnitCatalog = BusinessUnitCatalog(
+                listOf(
+                    BusinessUnitDefinition(
+                        id = appThreeBu,
+                        allowedExperiences = setOf(appThree),
+                        commerceCapabilities = CommerceCapabilities.of("catalog.view"),
                     ),
                 ),
             ),

@@ -12,15 +12,26 @@ struct SuperAppApp: App {
 }
 
 private struct SuperAppRootView: View {
+    private let productRoot: IOSProductCompositionRoot
     private let productName: String
-    private let experiences: [SuperAppExperience]
+    private let businessUnits: [String]
 
+    @State private var selectedBusinessUnit: String
     @State private var selectedExperience: SuperAppExperience?
     @State private var selectedStore: StoreOf<MultiAppFeature>?
 
     init(productRoot: IOSProductCompositionRoot = IOSProductCompositionRoot(productIdName: "SuperApp")) {
+        self.productRoot = productRoot
         productName = productRoot.productName
-        experiences = productRoot.supportedExperiences.map(SuperAppExperience.init)
+        let businessUnits = productRoot.businessUnits.map(\.id)
+        self.businessUnits = businessUnits
+        _selectedBusinessUnit = State(initialValue: businessUnits.first ?? "")
+    }
+
+    private var experiences: [SuperAppExperience] {
+        productRoot
+            .supportedExperiencesForBusinessUnit(businessUnitIdName: selectedBusinessUnit)
+            .map(SuperAppExperience.init)
     }
 
     var body: some View {
@@ -52,6 +63,16 @@ private struct SuperAppRootView: View {
             NavigationStack {
                 List {
                     Section {
+                        Picker("Business unit", selection: $selectedBusinessUnit) {
+                            ForEach(businessUnits, id: \.self) { businessUnit in
+                                Text(businessUnit)
+                            }
+                        }
+                    } footer: {
+                        Text("In production this value comes from login. This sample lets you switch it to exercise the hard-coded combinations.")
+                    }
+
+                    Section {
                         ForEach(experiences) { experience in
                             Button {
                                 selectedExperience = experience
@@ -60,6 +81,12 @@ private struct SuperAppRootView: View {
                                 VStack(alignment: .leading, spacing: 6) {
                                     Text(experience.displayName)
                                         .font(.headline)
+                                    Text(experience.theme)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                    Text("Sites: \(experience.allowedSites.joined(separator: ", "))")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                     Text("Default user: \(experience.defaultUsername)")
                                         .font(.subheadline)
                                         .foregroundStyle(.secondary)
@@ -84,12 +111,16 @@ private struct SuperAppRootView: View {
 private struct SuperAppExperience: Identifiable, Equatable {
     let id: String
     let displayName: String
+    let theme: String
+    let allowedSites: [String]
     let defaultUsername: String
     let supportedUsernames: [String]
 
     init(_ sharedExperience: SharedAppExperience) {
         id = sharedExperience.id
         displayName = sharedExperience.displayName
+        theme = sharedExperience.theme
+        allowedSites = sharedExperience.allowedSites
         defaultUsername = sharedExperience.defaultUsername
         supportedUsernames = sharedExperience.supportedUsernames
     }

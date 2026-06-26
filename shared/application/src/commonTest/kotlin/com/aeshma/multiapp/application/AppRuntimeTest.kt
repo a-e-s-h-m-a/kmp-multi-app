@@ -4,10 +4,12 @@ import com.aeshma.multiapp.core.analytics.ConsoleAnalyticsClient
 import com.aeshma.multiapp.core.config.UnsupportedExperienceException
 import com.aeshma.multiapp.core.config.LocalAuthRepository
 import com.aeshma.multiapp.core.model.AppId
+import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.config.AppCatalog
 import com.aeshma.multiapp.core.config.defaultAppDefinitions
 import com.aeshma.multiapp.core.model.ProductId
+import com.aeshma.multiapp.core.model.RoleId
 import com.aeshma.multiapp.feature.delivery.DeliveryPolicyResolver
 import com.aeshma.multiapp.feature.delivery.SampleDeliveryRepository
 import kotlin.coroutines.Continuation
@@ -45,8 +47,38 @@ class AppRuntimeTest {
         assertEquals(ProductId.SuperApp, runtime.productId)
         assertEquals(null, runtime.defaultExperience)
         assertEquals(listOf(AppId.AppOne, AppId.AppTwo), runtime.supportedExperiences.map { it.id })
+        assertEquals(listOf("Newport&Buckhead", "Shop"), runtime.supportedExperienceDefinitions.map { it.displayName })
         assertEquals("customer", runtime.appRuntimeFor(AppId.AppOne).appDefinition.defaultUsername)
         assertEquals("admin", runtime.appRuntimeFor(AppId.AppTwo).appDefinition.defaultUsername)
+    }
+
+    @Test
+    fun productRuntimeFiltersExperiencesByBusinessUnit() {
+        val superApp = createProductRuntime(ProductId.SuperApp)
+        val appOne = createProductRuntime(ProductId.AppOneStandalone)
+        val appTwo = createProductRuntime(ProductId.AppTwoStandalone)
+
+        assertEquals(listOf("Newport&Buckhead"), superApp.allowedExperiencesFor(BusinessUnitId.SSMG).map { it.displayName })
+        assertEquals(listOf("Shop"), superApp.allowedExperiencesFor(BusinessUnitId.USBL).map { it.displayName })
+        assertEquals(listOf("Newport&Buckhead"), appOne.allowedExperiencesFor(BusinessUnitId.SSMG).map { it.displayName })
+        assertEquals(emptyList(), appOne.allowedExperiencesFor(BusinessUnitId.USBL))
+        assertEquals(listOf("Shop"), appTwo.allowedExperiencesFor(BusinessUnitId.USBL).map { it.displayName })
+    }
+
+    @Test
+    fun commerceCapabilitiesCombineBusinessUnitExperienceRoleAndExplicitCapabilities() {
+        val runtime = createProductRuntime(ProductId.SuperApp)
+
+        val capabilities = runtime.resolvedCommerceCapabilities(
+            appId = AppId.AppTwo,
+            businessUnitId = BusinessUnitId.USBL,
+            roles = setOf(RoleId.CustomerAdmin),
+        )
+
+        assertEquals(true, "orders.view" in capabilities.permissions.map { it.value })
+        assertEquals(true, "orders.edit" in capabilities.permissions.map { it.value })
+        assertEquals(true, "delivery.map" in capabilities.permissions.map { it.value })
+        assertEquals(true, "pdp.internalDetails" in capabilities.permissions.map { it.value })
     }
 
     @Test
@@ -63,9 +95,9 @@ class AppRuntimeTest {
         val appOne = IOSAppCompositionRoot("AppOne")
         val appTwo = IOSAppCompositionRoot("AppTwo")
 
-        assertEquals("AppOne", appOne.appName)
+        assertEquals("Newport&Buckhead", appOne.appName)
         assertEquals("customer", appOne.defaultUsername)
-        assertEquals("AppTwo", appTwo.appName)
+        assertEquals("Shop", appTwo.appName)
         assertEquals("admin", appTwo.defaultUsername)
     }
 
@@ -79,10 +111,10 @@ class AppRuntimeTest {
         val catalog = AppCatalog(defaultAppDefinitions())
         val registry = FeatureRegistry()
         val cases = listOf(
-            Triple(AppId.AppOne, "customer", listOf("home", "delivery", "payments", "profile")),
-            Triple(AppId.AppOne, "driver", listOf("home", "delivery", "profile")),
-            Triple(AppId.AppTwo, "admin", listOf("home", "delivery", "reports", "profile")),
-            Triple(AppId.AppTwo, "nod", listOf("home", "profile")),
+            Triple(AppId.AppOne, "customer", listOf("orders", "lists", "catalog", "product-details", "delivery")),
+            Triple(AppId.AppOne, "driver", listOf("orders", "lists", "catalog", "product-details", "delivery")),
+            Triple(AppId.AppTwo, "admin", listOf("orders", "lists", "catalog", "product-details", "delivery")),
+            Triple(AppId.AppTwo, "nod", listOf("orders", "lists", "catalog", "product-details", "delivery")),
         )
 
         cases.forEach { (appId, username, expectedFeatures) ->

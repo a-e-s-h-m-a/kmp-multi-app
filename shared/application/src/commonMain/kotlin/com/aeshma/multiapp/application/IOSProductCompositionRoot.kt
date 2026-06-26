@@ -1,11 +1,18 @@
 package com.aeshma.multiapp.application
 
 import com.aeshma.multiapp.core.model.AppId
+import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.ProductId
+
+data class SharedBusinessUnit(
+    val id: String,
+)
 
 data class SharedAppExperience(
     val id: String,
     val displayName: String,
+    val theme: String,
+    val allowedSites: List<String>,
     val defaultUsername: String,
     val supportedUsernames: List<String>,
 )
@@ -17,14 +24,33 @@ class IOSProductCompositionRoot(productIdName: String) {
     val productName: String = runtime.productDefinition.displayName
     val showsExperiencePicker: Boolean = runtime.productDefinition.showsExperiencePicker
     val defaultExperienceId: String? = runtime.defaultExperience?.externalName
-    val supportedExperiences: List<SharedAppExperience> = runtime.supportedExperiences.map { definition ->
+    val businessUnits: List<SharedBusinessUnit> = runtime.businessUnits.map { definition ->
+        SharedBusinessUnit(id = definition.id.value)
+    }
+    val supportedExperiences: List<SharedAppExperience> = runtime.supportedExperienceDefinitions.map { definition ->
+        val appDefinition = runtime.appRuntimeFor(definition.appId).appDefinition
         SharedAppExperience(
-            id = definition.id.externalName,
+            id = definition.appId.externalName,
             displayName = definition.displayName,
-            defaultUsername = definition.defaultUsername,
-            supportedUsernames = definition.supportedUsernames,
+            theme = definition.theme,
+            allowedSites = definition.allowedSites.toList(),
+            defaultUsername = appDefinition.defaultUsername,
+            supportedUsernames = appDefinition.supportedUsernames,
         )
     }
+
+    fun supportedExperiencesForBusinessUnit(businessUnitIdName: String): List<SharedAppExperience> =
+        runtime.allowedExperiencesFor(BusinessUnitId.fromExternalName(businessUnitIdName)).map { definition ->
+            val appDefinition = runtime.appRuntimeFor(definition.appId).appDefinition
+            SharedAppExperience(
+                id = definition.appId.externalName,
+                displayName = definition.displayName,
+                theme = definition.theme,
+                allowedSites = definition.allowedSites.toList(),
+                defaultUsername = appDefinition.defaultUsername,
+                supportedUsernames = appDefinition.supportedUsernames,
+            )
+        }
 
     suspend fun login(appIdName: String, username: String): SharedSessionSnapshot {
         val appRuntime = runtime.appRuntimeFor(AppId.fromExternalName(appIdName))

@@ -64,8 +64,21 @@ private struct FeatureListView: View {
         List {
             Section(store.loggedInUserSummary ?? "") {
                 ForEach(store.availableFeatures) { feature in
-                    Button(feature.title) {
+                    Button {
                         store.send(.featureTapped(feature.id))
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(feature.title)
+                                .font(.headline)
+                            Text("Requires: \(feature.requiredPermission)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if !feature.enabledTweaks.isEmpty {
+                                Text("Tweaks: \(feature.enabledTweaks.joined(separator: ", "))")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
                     }
                 }
             }
@@ -86,8 +99,26 @@ private struct FeatureDetailView: View {
         store.availableFeatures.first { $0.id == featureId }?.title ?? featureId
     }
 
+    private var feature: NativeFeature? {
+        store.availableFeatures.first { $0.id == featureId }
+    }
+
     var body: some View {
         List {
+            if let feature {
+                Section("Permissions") {
+                    Text("Required: \(feature.requiredPermission)")
+                    if feature.enabledTweaks.isEmpty {
+                        Text("No optional tweaks enabled")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(feature.enabledTweaks, id: \.self) { tweak in
+                            Text(tweak)
+                        }
+                    }
+                }
+            }
+
             if featureId == "delivery" {
                 Section(store.deliveryExperienceName) {
                     ForEach(store.deliveryOrders) { order in

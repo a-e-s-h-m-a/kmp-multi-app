@@ -1,12 +1,15 @@
 package com.aeshma.multiapp.application
 
+import com.aeshma.multiapp.core.config.ExperienceCatalog
+import com.aeshma.multiapp.core.config.defaultExperienceDefinitions
 import com.aeshma.multiapp.core.model.AppId
 
 class IOSAppCompositionRoot(appIdName: String) {
     private val runtime = createAppRuntime(AppId.fromExternalName(appIdName))
+    private val experienceDefinition = ExperienceCatalog(defaultExperienceDefinitions()).definition(runtime.appId)
     private val snapshotMapper = SessionSnapshotMapper()
 
-    val appName: String = runtime.appDefinition.displayName
+    val appName: String = experienceDefinition.displayName
     val defaultUsername: String = runtime.appDefinition.defaultUsername
     val supportedUsernames: List<String> = runtime.appDefinition.supportedUsernames
 

@@ -5,6 +5,8 @@ import com.aeshma.multiapp.core.model.AppContext
 data class SharedFeatureSnapshot(
     val id: String,
     val title: String,
+    val requiredPermission: String,
+    val enabledTweaks: List<String>,
 )
 
 data class SharedDeliveryOrderSnapshot(
@@ -30,6 +32,8 @@ class SessionSnapshotMapper {
                 SharedFeatureSnapshot(
                     id = feature.id.value,
                     title = feature.title,
+                    requiredPermission = feature.requiredPermission.value,
+                    enabledTweaks = feature.enabledTweaks(context).map { it.value },
                 )
             },
             deliveryExperienceName = policy.experienceName,

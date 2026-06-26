@@ -41,7 +41,9 @@ import com.aeshma.multiapp.application.createAppRuntime
 import com.aeshma.multiapp.application.createProductRuntime
 import com.aeshma.multiapp.core.model.AppContext
 import com.aeshma.multiapp.core.model.AppId
+import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.FeatureId
+import com.aeshma.multiapp.core.model.PermissionId
 import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.feature.delivery.DeliveryAction
 import com.aeshma.multiapp.feature.delivery.DeliveryOrder
@@ -59,7 +61,12 @@ private sealed interface Screen {
 fun App(appId: AppId = AppId.AppOne) {
     val runtime = remember(appId) { createAppRuntime(appId) }
     AppThemeContainer {
-        ExperienceApp(runtime = runtime, onExitExperience = null)
+        ExperienceApp(
+            runtime = runtime,
+            experienceTitle = runtime.appDefinition.displayName,
+            experienceSubtitle = "Native Android shell with shared KMP policies",
+            onExitExperience = null,
+        )
     }
 }
 
@@ -70,20 +77,30 @@ fun ProductApp(productId: ProductId = ProductId.AppOneStandalone) {
     var selectedExperience by remember(productRuntime) {
         mutableStateOf(productRuntime.defaultExperience)
     }
+    var selectedBusinessUnit by remember(productRuntime) {
+        mutableStateOf(productRuntime.businessUnits.first().id)
+    }
 
     AppThemeContainer {
         val experience = selectedExperience
         if (experience == null) {
             ExperiencePickerScreen(
                 productRuntime = productRuntime,
+                selectedBusinessUnit = selectedBusinessUnit,
+                onBusinessUnitSelected = { selectedBusinessUnit = it },
                 onExperienceSelected = { selectedExperience = it },
             )
         } else {
             val runtime = remember(productRuntime, experience) {
                 productRuntime.appRuntimeFor(experience)
             }
+            val experienceDefinition = remember(productRuntime, experience) {
+                productRuntime.experienceDefinition(experience)
+            }
             ExperienceApp(
                 runtime = runtime,
+                experienceTitle = experienceDefinition.displayName,
+                experienceSubtitle = "${experienceDefinition.theme} / Sites: ${experienceDefinition.allowedSites.joinToString()}",
                 onExitExperience = if (productRuntime.productDefinition.showsExperiencePicker) {
                     {
                         runtime.session.logout()
@@ -120,8 +137,12 @@ private fun AppThemeContainer(content: @Composable () -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 private fun ExperiencePickerScreen(
     productRuntime: ProductRuntime,
+    selectedBusinessUnit: BusinessUnitId,
+    onBusinessUnitSelected: (BusinessUnitId) -> Unit,
     onExperienceSelected: (AppId) -> Unit,
 ) {
+    val experiences = productRuntime.allowedExperiencesFor(selectedBusinessUnit)
+
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(bottom = 24.dp),
@@ -133,16 +154,38 @@ private fun ExperiencePickerScreen(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                "Choose which app experience to launch.",
+                "Choose which app experience to launch. The business unit below simulates the BU returned after login.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        items(productRuntime.supportedExperiences, key = { it.id.externalName }) { experience ->
+        item {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                productRuntime.businessUnits.forEach { businessUnit ->
+                    FilterChip(
+                        selected = selectedBusinessUnit == businessUnit.id,
+                        onClick = { onBusinessUnitSelected(businessUnit.id) },
+                        label = { Text(businessUnit.id.value) },
+                    )
+                }
+            }
+        }
+        if (experiences.isEmpty()) {
+            item {
+                Text(
+                    "No experiences are available for ${selectedBusinessUnit.value}.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        items(experiences, key = { it.appId.externalName }) { experience ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onExperienceSelected(experience.id) },
+                    .clickable { onExperienceSelected(experience.appId) },
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 Column(
@@ -155,7 +198,12 @@ private fun ExperiencePickerScreen(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        "Default user: ${experience.defaultUsername}",
+                        experience.theme,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Sites: ${experience.allowedSites.joinToString()}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -169,6 +217,8 @@ private fun ExperiencePickerScreen(
 @OptIn(ExperimentalLayoutApi::class)
 private fun ExperienceApp(
     runtime: AppRuntime,
+    experienceTitle: String,
+    experienceSubtitle: String,
     onExitExperience: (() -> Unit)?,
 ) {
     val session = runtime.session
@@ -180,7 +230,8 @@ private fun ExperienceApp(
 
     when (val currentScreen = screen) {
         Screen.Login -> LoginScreen(
-            appName = runtime.appDefinition.displayName,
+            appName = experienceTitle,
+            subtitle = experienceSubtitle,
             users = runtime.appDefinition.supportedUsernames,
             selectedUser = selectedUser,
             onUserSelected = { selectedUser = it },
@@ -219,6 +270,7 @@ private fun ExperienceApp(
 @OptIn(ExperimentalLayoutApi::class)
 private fun LoginScreen(
     appName: String,
+    subtitle: String,
     users: List<String>,
     selectedUser: String,
     onUserSelected: (String) -> Unit,
@@ -232,7 +284,7 @@ private fun LoginScreen(
         item {
             Text(appName, style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
             Text(
-                "Native Android shell with shared KMP policies",
+                subtitle,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -281,7 +333,7 @@ private fun FeatureListScreen(
                         fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        "${context.userType.name} / ${context.userId}",
+                        "${context.businessUnitId.value} / ${context.roles.joinToString { it.value }} / ${context.userId}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -296,12 +348,29 @@ private fun FeatureListScreen(
                     .clickable { onFeatureTapped(feature) },
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
-                Text(
-                    feature.title,
+                Column(
                     modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        feature.title,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "Requires: ${feature.requiredPermission.value}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val enabledTweaks = feature.enabledTweaks(context)
+                    if (enabledTweaks.isNotEmpty()) {
+                        Text(
+                            "Enabled tweaks: ${enabledTweaks.joinToString { it.value }}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
     }
@@ -317,14 +386,15 @@ private fun FeatureScreen(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         OutlinedButton(onClick = onBack) { Text("Back") }
         when (featureId) {
-            FeatureId.Home -> SimpleFeatureView("Home", "Welcome ${context.userId}.")
-            FeatureId.Profile -> SimpleFeatureView("Profile", "User type: ${context.userType.name}")
-            FeatureId.Reports -> ReportsView(context)
-            FeatureId.Payments -> PaymentsView(context)
+            FeatureId.Orders -> OrdersView(context)
+            FeatureId.Lists -> ListsView(context)
+            FeatureId.Catalog -> CatalogView(context)
+            FeatureId.ProductDetails -> ProductDetailsView(context)
             FeatureId.Delivery -> DeliveryView(
                 policyName = session.deliveryPolicy().experienceName,
                 orders = session.deliveryOrders(),
                 actionsForOrder = session.deliveryPolicy()::availableActions,
+                context = context,
             )
             else -> SimpleFeatureView("Unavailable", "Unknown feature: ${featureId.value}")
         }
@@ -345,6 +415,7 @@ private fun DeliveryView(
     policyName: String,
     orders: List<DeliveryOrder>,
     actionsForOrder: (DeliveryOrder) -> List<DeliveryAction>,
+    context: AppContext,
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -352,6 +423,11 @@ private fun DeliveryView(
     ) {
         item {
             Text(policyName, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            CommercePermissionLine("Edit delivery", context.hasPermission(PermissionId.DeliveryEdit))
+            CommercePermissionLine("Progress timeline", context.hasPermission(PermissionId.DeliveryProgress))
+            CommercePermissionLine("Status updates", context.hasPermission(PermissionId.DeliveryStatus))
+            CommercePermissionLine("Map tracking", context.hasPermission(PermissionId.DeliveryMap))
+            CommercePermissionLine("Invoices", context.hasPermission(PermissionId.DeliveryInvoices))
         }
         items(orders, key = DeliveryOrder::id) { order ->
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -379,27 +455,47 @@ private fun DeliveryView(
 }
 
 @Composable
-private fun ReportsView(context: AppContext) {
-    val reports = requireNotNull(context.capabilities.reports)
+private fun OrdersView(context: AppContext) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Reports", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        CapabilityLine("Delivery volume", reports.canViewReports)
-        CapabilityLine("Global reports", reports.canViewGlobalReports)
-        CapabilityLine("Merchant reports", reports.canViewMerchantReports)
+        Text("Orders", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        CommercePermissionLine("View orders", context.hasPermission(PermissionId.OrdersView))
+        CommercePermissionLine("Edit orders", context.hasPermission(PermissionId.OrdersEdit))
+        CommercePermissionLine("Order notifications", context.hasPermission(PermissionId.OrdersNotifications))
     }
 }
 
 @Composable
-private fun PaymentsView(context: AppContext) {
-    val payments = requireNotNull(context.capabilities.payments)
+private fun ListsView(context: AppContext) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Payments", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        CapabilityLine("Make payment", payments.canMakePayment)
-        CapabilityLine("Payment history", payments.canViewPaymentHistory)
+        Text("Lists", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        CommercePermissionLine("View lists", context.hasPermission(PermissionId.ListsView))
+        CommercePermissionLine("Edit lists", context.hasPermission(PermissionId.ListsEdit))
+        CommercePermissionLine("Purchase history", context.hasPermission(PermissionId.ListsPurchaseHistory))
     }
 }
 
 @Composable
-private fun CapabilityLine(label: String, enabled: Boolean) {
+private fun CatalogView(context: AppContext) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Catalog", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        CommercePermissionLine("View catalog", context.hasPermission(PermissionId.CatalogView))
+        CommercePermissionLine("Recommendations", context.hasPermission(PermissionId.CatalogRecommendations))
+    }
+}
+
+@Composable
+private fun ProductDetailsView(context: AppContext) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text("Product Details", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        CommercePermissionLine("View PDP", context.hasPermission(PermissionId.PdpView))
+        CommercePermissionLine("Internal details", context.hasPermission(PermissionId.PdpInternalDetails))
+    }
+}
+
+@Composable
+private fun CommercePermissionLine(label: String, enabled: Boolean) {
     Text("$label: ${if (enabled) "enabled" else "disabled"}")
 }
+
+private fun AppContext.hasPermission(permission: PermissionId): Boolean =
+    commerceCapabilities.has(permission)

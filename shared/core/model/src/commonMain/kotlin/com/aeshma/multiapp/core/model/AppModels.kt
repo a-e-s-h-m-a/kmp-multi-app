@@ -36,7 +36,11 @@ enum class UserType {
 
 data class AppContext(
     val appId: AppId,
+    val businessUnitId: BusinessUnitId,
     val userId: String,
     val userType: UserType,
+    val roles: Set<RoleId>,
+    val explicitPermissions: Set<PermissionId>,
+    val commerceCapabilities: CommerceCapabilities,
     val capabilities: UserCapabilities,
 )

@@ -19,7 +19,12 @@ private actor IOSAppGateway {
         return NativeSessionSnapshot(
             userSummary: snapshot.userSummary,
             availableFeatures: snapshot.availableFeatures.map {
-                NativeFeature(id: $0.id, title: $0.title)
+                NativeFeature(
+                    id: $0.id,
+                    title: $0.title,
+                    requiredPermission: $0.requiredPermission,
+                    enabledTweaks: $0.enabledTweaks
+                )
             },
             deliveryExperienceName: snapshot.deliveryExperienceName,
             deliveryOrders: snapshot.deliveryOrders.map {

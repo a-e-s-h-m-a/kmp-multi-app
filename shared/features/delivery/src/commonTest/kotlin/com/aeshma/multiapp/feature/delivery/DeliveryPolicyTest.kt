@@ -2,8 +2,11 @@ package com.aeshma.multiapp.feature.delivery
 
 import com.aeshma.multiapp.core.model.AppContext
 import com.aeshma.multiapp.core.model.AppId
+import com.aeshma.multiapp.core.model.BusinessUnitId
+import com.aeshma.multiapp.core.model.CommerceCapabilities
 import com.aeshma.multiapp.core.model.DeliveryCapability
 import com.aeshma.multiapp.core.model.DeliveryMode
+import com.aeshma.multiapp.core.model.RoleId
 import com.aeshma.multiapp.core.model.UserCapabilities
 import com.aeshma.multiapp.core.model.UserType
 import kotlin.test.Test
@@ -47,8 +50,12 @@ class DeliveryPolicyTest {
 
     private fun context(appId: AppId, delivery: DeliveryCapability): AppContext = AppContext(
         appId = appId,
+        businessUnitId = BusinessUnitId.SSMG,
         userId = "test-user",
         userType = UserType.Customer,
+        roles = setOf(RoleId.Customer),
+        explicitPermissions = emptySet(),
+        commerceCapabilities = CommerceCapabilities.none(),
         capabilities = UserCapabilities(delivery = delivery),
     )
 

@@ -6,10 +6,10 @@ data class FeatureId(val value: String) {
     }
 
     companion object {
-        val Home = FeatureId("home")
+        val Orders = FeatureId("orders")
+        val Lists = FeatureId("lists")
+        val Catalog = FeatureId("catalog")
+        val ProductDetails = FeatureId("product-details")
         val Delivery = FeatureId("delivery")
-        val Profile = FeatureId("profile")
-        val Reports = FeatureId("reports")
-        val Payments = FeatureId("payments")
     }
 }

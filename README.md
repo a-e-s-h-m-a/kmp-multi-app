@@ -129,6 +129,56 @@ ProductDefinition(
 
 `ProductRuntime` validates every selected experience against this allowlist. That keeps standalone apps locked to one experience while allowing the Super App to route into AppOne or AppTwo.
 
+### Hard-Coded Experience And Business Unit Config
+
+The sample now models app experiences separately from product packaging. The hard-coded matrix is intentionally small, but it is structured like config so it can move to remote config later.
+
+| Stable app ID | Experience display | Theme | Sites | Supported BU |
+|---|---|---|---|---|
+| `AppOne` | `Newport&Buckhead` | `SSMG Boutique Theme` | `BHNP` | `SSMG` |
+| `AppTwo` | `Shop` | `Broadline Theme` | `USBL` | `USBL` |
+
+The matching business-unit config is:
+
+| Business unit | Allowed experiences |
+|---|---|
+| `SSMG` | `AppOne` / `Newport&Buckhead` |
+| `USBL` | `AppTwo` / `Shop` |
+
+The important filter is the intersection:
+
+```text
+available experiences =
+    product.supportedExperiences
+        ∩ businessUnit.allowedExperiences
+        ∩ experience.supportedBusinessUnits
+```
+
+That means:
+
+- `AppOneStandalone` can only expose `Newport&Buckhead`.
+- `AppTwoStandalone` can only expose `Shop`.
+- `SuperApp` knows both experiences, then filters them by the selected/authenticated BU.
+
+For now the Super App UI has a demo BU picker. In production, that value should come from login and the picker would only render the experiences allowed for the authenticated user.
+
+Roles and permissions are also represented as config-shaped objects:
+
+```kotlin
+PermissionTemplate(
+    role = RoleId.CustomerAdmin,
+    commerceCapabilities = CommerceCapabilities.of(
+        "orders.view",
+        "orders.edit",
+        "lists.edit",
+        "catalog.recommendations",
+        "delivery.map",
+    ),
+)
+```
+
+`ProductRuntime.resolvedCommerceCapabilities(...)` combines business-unit capabilities, experience capabilities, role templates, and explicit permissions into one capability set. Feature registries and feature policies should read from that resolved set instead of checking raw roles in UI code.
+
 ## 2. AppCatalog And AppContext
 
 `AppCatalog` is still part of the current architecture and is required by the sample. It is not an obsolete step and it is not a service locator.
@@ -175,6 +225,10 @@ fun contextFor(appId: AppId, username: String): AppContext {
         userId = "${definition.configKey}-$normalizedUsername",
         userType = profile.userType,
         capabilities = profile.capabilities,
+        businessUnitId = businessUnitFor(definition.id),
+        roles = rolesFor(profile, normalizedUsername),
+        explicitPermissions = explicitPermissionsFor(profile, normalizedUsername),
+        commerceCapabilities = commerceCapabilitiesFor(...),
     )
 }
 ```
@@ -187,53 +241,68 @@ data class AppContext(
     val userId: String,
     val userType: UserType,
     val capabilities: UserCapabilities,
+    val businessUnitId: BusinessUnitId,
+    val roles: Set<RoleId>,
+    val explicitPermissions: Set<PermissionId>,
+    val commerceCapabilities: CommerceCapabilities,
 )
 ```
 
-In production, `LocalAuthRepository` could be replaced by a remote repository that maps an API response into the same `AppContext`. `FeatureRegistry` and delivery policies would not need to change.
+The old typed `UserCapabilities` remains because the delivery policy sample still demonstrates strategy-based behavior. The commerce feature list now reads from `commerceCapabilities`, which is built from experience config, business-unit config, role permission templates, and explicit user permissions.
 
-## 3. Capabilities And Feature Selection
+In production, `LocalAuthRepository` could be replaced by a remote repository that maps an API response into the same `AppContext`. The rest of the app should continue to read `AppContext` rather than raw network payloads.
 
-A capability is typed data describing what a user is allowed to access or do. It is more precise than using a role name as permission logic.
+## 3. Permission-String Capabilities And Feature Selection
+
+A commerce capability is a permission string such as `orders.view`, `lists.edit`, or `delivery.map`, represented by the shared `PermissionId` value class. This keeps the sample close to the real authorization shape while still giving Kotlin call sites a stable type.
 
 ```kotlin
-data class UserCapabilities(
-    val delivery: DeliveryCapability? = null,
-    val reports: ReportsCapability? = null,
-    val payments: PaymentsCapability? = null,
+data class CommerceCapabilities(
+    val permissions: Set<PermissionId> = emptySet(),
 )
 ```
 
-`FeatureRegistry` uses those capabilities to select visible features:
+`FeatureRegistry` now uses permission-string capabilities to select visible features and expose enabled feature tweaks:
 
 ```kotlin
 private val features = listOf(
-    FeatureDescriptor(FeatureId.Home, "Home") { true },
-    FeatureDescriptor(FeatureId.Delivery, "Delivery") {
-        it.capabilities.delivery != null
-    },
-    FeatureDescriptor(FeatureId.Reports, "Reports") {
-        it.capabilities.reports?.canViewReports == true
-    },
-    FeatureDescriptor(FeatureId.Payments, "Payments") {
-        it.capabilities.payments?.canMakePayment == true
-    },
-    FeatureDescriptor(FeatureId.Profile, "Profile") { true },
+    FeatureDescriptor(
+        id = FeatureId.Orders,
+        title = "Orders",
+        requiredPermission = PermissionId.OrdersView,
+        tweakPermissions = listOf(
+            PermissionId.OrdersEdit,
+            PermissionId.OrdersNotifications,
+        ),
+    ),
+    FeatureDescriptor(
+        id = FeatureId.Delivery,
+        title = "Delivery",
+        requiredPermission = PermissionId.DeliveryView,
+        tweakPermissions = listOf(
+            PermissionId.DeliveryEdit,
+            PermissionId.DeliveryProgress,
+            PermissionId.DeliveryStatus,
+            PermissionId.DeliveryMap,
+            PermissionId.DeliveryInvoices,
+        ),
+    ),
 )
 ```
 
-Feature selection answers only: **may this feature be shown and opened?**
+Feature selection answers: **may this feature be shown and opened?** Feature tweaks answer: **which sub-capabilities should be enabled inside that feature?**
 
-| Profile | Available features |
+The dummy `Home`, `Profile`, `Reports`, and `Payments` examples have been replaced by commerce features:
+
+| Feature | Required permission | Tweaks |
 |---|---|
-| AppOne `customer` | Home, Delivery, Payments, Profile |
-| AppOne `driver` | Home, Delivery, Profile |
-| AppTwo `admin` | Home, Delivery, Reports, Profile |
-| AppTwo `merchant` | Home, Delivery, Reports, Profile |
-| `readonly` | Home, Delivery, Profile |
-| `nod` or a no-capability profile | Home, Profile |
+| Orders | `orders.view` | `orders.edit`, `orders.notifications` |
+| Lists | `lists.view` | `lists.edit`, `lists.purchaseHistory` |
+| Catalog | `catalog.view` | `catalog.recommendations` |
+| Product Details | `pdp.view` | `pdp.internalDetails` |
+| Delivery | `delivery.view` | `delivery.edit`, `delivery.progress`, `delivery.status`, `delivery.map`, `delivery.invoices` |
 
-The UI may switch on a stable `FeatureId` to navigate to the appropriate screen. It should not reproduce capability checks to decide visibility.
+The UI may switch on a stable `FeatureId` to navigate to the appropriate screen. It should not reproduce role checks or business-unit checks to decide visibility; those belong in the config resolution path that produces `commerceCapabilities`.
 
 ## 4. Policies And Experiences
 
@@ -300,7 +369,7 @@ class ProductRuntime internal constructor(
 }
 ```
 
-Android uses this through `ProductApp(productId)`. Standalone products have a `defaultExperience`, so they go straight to the existing login/features flow. The Super App has no default experience, so the UI shows the gateway picker first.
+Android uses this through `ProductApp(productId)`. Standalone products have a `defaultExperience`, so they go straight to the existing login/features flow with the configured experience title/theme. The Super App has no default experience, so the UI shows the gateway picker first and filters the picker by demo BU.
 
 Metro creates the shared object graph in `AppGraph`:
 
@@ -394,14 +463,15 @@ sequenceDiagram
 
     SuperApp->>ProductRoot: "IOSProductCompositionRoot(SuperApp)"
     ProductRoot->>ProductRuntime: "supportedExperiences"
-    ProductRuntime-->>ProductRoot: "AppOne, AppTwo"
+    ProductRuntime-->>ProductRoot: "Newport&Buckhead, Shop"
     ProductRoot-->>SuperApp: "SharedAppExperience list"
+    SuperApp->>ProductRoot: "supportedExperiencesForBusinessUnit(BU)"
     SuperApp->>SuperApp: "user selects experience"
     SuperApp->>StoreFactory: "make(appIdName)"
     StoreFactory-->>Experience: "StoreOf<MultiAppFeature>"
 ```
 
-The gateway screen lives in `iosApp/AppSuper/SuperAppApp.swift`. It does not duplicate the product catalog in Swift; it asks shared Kotlin which experiences the `SuperApp` product supports.
+The gateway screen lives in `iosApp/AppSuper/SuperAppApp.swift`. It does not duplicate the product catalog in Swift; it asks shared Kotlin which experiences the `SuperApp` product supports and which of those are allowed for the selected/authenticated BU.
 
 ### What Each iOS Tool Does
 
@@ -457,8 +527,8 @@ iosApp/
     MultiAppView.swift        SwiftUI views
   SharedIOSTests/             TCA reducer tests
 shared/
-  core/model/                 App, capability and feature contracts
-  core/config/                Definitions, profiles, presets and catalog
+  core/model/                 App, commerce capability and feature contracts
+  core/config/                Definitions, profiles, experience/BU config, presets and catalog
   core/analytics/             Analytics abstraction
   features/delivery/          Delivery domain, repository and policies
   application/                Product runtime, Metro graph, session and iOS composition roots
@@ -475,10 +545,10 @@ AppOne target/flavor
     -> default AppId("AppOne")
     -> login("customer")
     -> AppCatalog selects AppOne customer profile
-    -> AppContext receives Customer delivery and Payments capabilities
-    -> FeatureRegistry returns Home, Delivery, Payments, Profile
+    -> AppContext receives SSMG BU, Customer role and resolved commerce permissions
+    -> FeatureRegistry returns Orders, Lists, Catalog, Product Details and Delivery
     -> DeliveryPolicyResolver returns CustomerDeliveryPolicy
-    -> SwiftUI/Compose renders those features and customer actions
+    -> SwiftUI/Compose renders those features, enabled tweaks and customer actions
 ```
 
 ### AppTwo Merchant
@@ -489,10 +559,10 @@ AppTwo target/flavor
     -> default AppId("AppTwo")
     -> login("merchant")
     -> AppCatalog selects AppTwo merchant profile
-    -> AppContext receives Merchant delivery and Reports capabilities
-    -> FeatureRegistry returns Home, Delivery, Reports, Profile
+    -> AppContext receives USBL BU, Customer Admin role and resolved commerce permissions
+    -> FeatureRegistry returns Orders, Lists, Catalog, Product Details and Delivery
     -> DeliveryPolicyResolver returns MerchantDeliveryPolicy
-    -> SwiftUI/Compose renders those features and merchant actions
+    -> SwiftUI/Compose renders those features, enabled tweaks and merchant actions
 ```
 
 ### Super App Customer
@@ -501,11 +571,13 @@ AppTwo target/flavor
 SuperApp flavor/target
     -> ProductId("SuperApp")
     -> ProductCatalog exposes AppOne and AppTwo
-    -> user selects AppOne
+    -> user selects a business unit
+    -> Super App filters available experiences by product, BU and experience config
+    -> user selects AppOne / Newport&Buckhead
     -> login("customer")
     -> AppCatalog selects AppOne customer profile
-    -> AppContext receives Customer delivery and Payments capabilities
-    -> FeatureRegistry returns Home, Delivery, Payments, Profile
+    -> AppContext receives SSMG BU, Customer role and resolved commerce permissions
+    -> FeatureRegistry returns permission-driven commerce features
 ```
 
 ## Running Android
