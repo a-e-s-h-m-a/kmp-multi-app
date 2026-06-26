@@ -55,7 +55,7 @@ The central rule is:
 
 > `ProductId` selects the installed product. `AppId` selects the active experience. Capabilities select features. Policies select behavior. Native UI renders the result.
 
-## The Four Decisions
+## The Five Decisions
 
 | Decision | Question | Implemented by |
 |---|---|---|
@@ -284,7 +284,23 @@ The policy then combines capability flags with current domain state. For example
 
 This is the Strategy pattern: calling code depends on one interface while the resolver supplies the correct implementation.
 
-## Shared Session And Metro
+## Product Runtime, Shared Session And Metro
+
+`ProductRuntime` is the layer above an individual app runtime. It owns the selected `ProductDefinition`, exposes the supported app experiences, and validates that every selected `AppId` belongs to that product.
+
+```kotlin
+class ProductRuntime internal constructor(
+    val productDefinition: ProductDefinition,
+    private val appCatalog: AppCatalog,
+) {
+    val supportedExperiences = productDefinition.supportedExperiences
+        .map(appCatalog::definition)
+
+    fun appRuntimeFor(appId: AppId): AppRuntime
+}
+```
+
+Android uses this through `ProductApp(productId)`. Standalone products have a `defaultExperience`, so they go straight to the existing login/features flow. The Super App has no default experience, so the UI shows the gateway picker first.
 
 Metro creates the shared object graph in `AppGraph`:
 
@@ -301,7 +317,7 @@ AppGraph
 
 `AppSession` is the shared application-facing API. It logs in, stores the current `AppContext`, exposes available features, resolves the delivery policy, returns sample orders, tracks analytics, and clears the context on logout.
 
-Metro performs construction and dependency injection. It does not decide feature availability or business behavior; those responsibilities remain in the registry and policies.
+Metro performs construction and dependency injection for a selected app experience. It does not decide product routing, feature availability, or business behavior; those responsibilities remain in `ProductCatalog`, the registry, and policies.
 
 ## iOS: KMP, TCA, Dependencies And SKIE
 
@@ -364,6 +380,29 @@ class IOSAppCompositionRoot(appIdName: String) {
 
 `SessionSnapshotMapper` obtains visible features and delivery actions from the shared session. Swift receives results, not rule objects that it must reinterpret.
 
+### iOS Super App Gateway Sequence
+
+The iOS Super App target uses the same shared product catalog as Android:
+
+```mermaid
+sequenceDiagram
+    participant SuperApp as "SuperAppApp"
+    participant ProductRoot as "IOSProductCompositionRoot"
+    participant ProductRuntime as "ProductRuntime"
+    participant StoreFactory as "MultiAppStoreFactory"
+    participant Experience as "MultiAppRootView"
+
+    SuperApp->>ProductRoot: "IOSProductCompositionRoot(SuperApp)"
+    ProductRoot->>ProductRuntime: "supportedExperiences"
+    ProductRuntime-->>ProductRoot: "AppOne, AppTwo"
+    ProductRoot-->>SuperApp: "SharedAppExperience list"
+    SuperApp->>SuperApp: "user selects experience"
+    SuperApp->>StoreFactory: "make(appIdName)"
+    StoreFactory-->>Experience: "StoreOf<MultiAppFeature>"
+```
+
+The gateway screen lives in `iosApp/AppSuper/SuperAppApp.swift`. It does not duplicate the product catalog in Swift; it asks shared Kotlin which experiences the `SuperApp` product supports.
+
 ### What Each iOS Tool Does
 
 - **SwiftUI** renders screens and sends user events.
@@ -377,7 +416,7 @@ class IOSAppCompositionRoot(appIdName: String) {
 The native path is:
 
 ```text
-AppOneApp/AppTwoApp/SuperAppApp
+AppOneApp/AppTwoApp
     -> MultiAppRootView
     -> TCA Store with live MultiAppClient
     -> IOSAppGateway actor
@@ -386,6 +425,17 @@ AppOneApp/AppTwoApp/SuperAppApp
     -> snapshot mapped to native Swift models
     -> reducer updates State
     -> SwiftUI re-renders
+```
+
+The Super App adds one gateway step before that same experience path:
+
+```text
+SuperAppApp
+    -> IOSProductCompositionRoot(productIdName = "SuperApp")
+    -> shared ProductCatalog returns AppOne and AppTwo
+    -> user selects an experience
+    -> MultiAppStoreFactory.make(appIdName)
+    -> existing MultiAppRootView/TCA/KMP login flow
 ```
 
 The current delivery view displays the action names selected by shared policies. Executing complete delivery workflows is outside this sample.
@@ -448,7 +498,7 @@ AppTwo target/flavor
 ### Super App Customer
 
 ```text
-SuperApp flavor
+SuperApp flavor/target
     -> ProductId("SuperApp")
     -> ProductCatalog exposes AppOne and AppTwo
     -> user selects AppOne
@@ -497,19 +547,22 @@ If Kotlin/Swift symbols are stale, use **Product > Clean Build Folder** and rebu
 Command-line simulator builds:
 
 ```bash
-xcodebuild -project iosApp/iosApp.xcodeproj \
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcodebuild -project iosApp/iosApp.xcodeproj \
   -scheme AppOne \
   -destination 'generic/platform=iOS Simulator' \
   -skipMacroValidation \
   CODE_SIGNING_ALLOWED=NO build
 
-xcodebuild -project iosApp/iosApp.xcodeproj \
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcodebuild -project iosApp/iosApp.xcodeproj \
   -scheme AppTwo \
   -destination 'generic/platform=iOS Simulator' \
   -skipMacroValidation \
   CODE_SIGNING_ALLOWED=NO build
 
-xcodebuild -project iosApp/iosApp.xcodeproj \
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer \
+  xcodebuild -project iosApp/iosApp.xcodeproj \
   -scheme SuperApp \
   -destination 'generic/platform=iOS Simulator' \
   -skipMacroValidation \
