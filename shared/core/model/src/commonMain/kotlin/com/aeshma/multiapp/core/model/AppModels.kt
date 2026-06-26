@@ -13,6 +13,20 @@ data class AppId(val externalName: String) {
     }
 }
 
+data class ProductId(val externalName: String) {
+    init {
+        require(externalName.isNotBlank()) { "Product id cannot be blank." }
+    }
+
+    companion object {
+        val AppOneStandalone = ProductId("AppOneStandalone")
+        val AppTwoStandalone = ProductId("AppTwoStandalone")
+        val SuperApp = ProductId("SuperApp")
+
+        fun fromExternalName(value: String): ProductId = ProductId(value.trim())
+    }
+}
+
 enum class UserType {
     Customer,
     Driver,

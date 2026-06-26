@@ -9,10 +9,12 @@
 /* Begin PBXBuildFile section */
 		A10300000000000000000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = A10100000000000000000001 /* ComposableArchitecture */; };
 		A10400000000000000000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = A10200000000000000000001 /* ComposableArchitecture */; };
+		A2000000000000000000000C /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = A2000000000000000000000B /* ComposableArchitecture */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		3E3C5461B422857411FB0E99 /* MultiApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MultiApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000001 /* SuperApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SuperApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DBB2DA03711301A0CA9636E3 /* AppTwo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppTwo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		F41B7736D342490B11F061B0 /* AppOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = AppOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -39,6 +41,11 @@
 		8DA2051B60E4DBEF0F47E066 /* AppTwo */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = AppTwo;
+			sourceTree = "<group>";
+		};
+		A20000000000000000000002 /* AppSuper */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = AppSuper;
 			sourceTree = "<group>";
 		};
 		B87BA6BBCFDF8A7136E8F0D7 /* AppOne */ = {
@@ -75,6 +82,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A20000000000000000000003 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A2000000000000000000000C /* ComposableArchitecture in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		90091C3CEAA324A7EBDB6897 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -91,6 +106,7 @@
 				3E3C5461B422857411FB0E99 /* MultiApp.app */,
 				F41B7736D342490B11F061B0 /* AppOne.app */,
 				DBB2DA03711301A0CA9636E3 /* AppTwo.app */,
+				A20000000000000000000001 /* SuperApp.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -103,6 +119,7 @@
 				DA9EDE5CBCA0D2A7F5635DE4 /* SharedIOS */,
 				B87BA6BBCFDF8A7136E8F0D7 /* AppOne */,
 				8DA2051B60E4DBEF0F47E066 /* AppTwo */,
+				A20000000000000000000002 /* AppSuper */,
 				1AE61815E050C583989B9C2F /* Products */,
 			);
 			sourceTree = "<group>";
@@ -160,6 +177,31 @@
 			productReference = F41B7736D342490B11F061B0 /* AppOne.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A20000000000000000000007 /* SuperApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A2000000000000000000000A /* Build configuration list for PBXNativeTarget "SuperApp" */;
+			buildPhases = (
+				A20000000000000000000006 /* Compile Kotlin Framework */,
+				A20000000000000000000004 /* Sources */,
+				A20000000000000000000003 /* Frameworks */,
+				A20000000000000000000005 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				A20000000000000000000002 /* AppSuper */,
+				DA9EDE5CBCA0D2A7F5635DE4 /* SharedIOS */,
+			);
+			name = SuperApp;
+			packageProductDependencies = (
+				A2000000000000000000000B /* ComposableArchitecture */,
+			);
+			productName = SuperApp;
+			productReference = A20000000000000000000001 /* SuperApp.app */;
+			productType = "com.apple.product-type.application";
+		};
 		785DF60CF0A9A385D43EC69F /* iosApp */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = DE0DA6559EB76AF5B47802D7 /* Build configuration list for PBXNativeTarget "iosApp" */;
@@ -199,6 +241,9 @@
 					3C5FDB67E3716F8E1B8647D1 = {
 						CreatedOnToolsVersion = 16.2;
 					};
+					A20000000000000000000007 = {
+						CreatedOnToolsVersion = 16.2;
+					};
 					785DF60CF0A9A385D43EC69F = {
 						CreatedOnToolsVersion = 16.2;
 					};
@@ -224,6 +269,7 @@
 				785DF60CF0A9A385D43EC69F /* iosApp */,
 				3C5FDB67E3716F8E1B8647D1 /* AppOne */,
 				3A3226B239038FBE187A6E28 /* AppTwo */,
+				A20000000000000000000007 /* SuperApp */,
 			);
 		};
 /* End PBXProject section */
@@ -243,6 +289,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A20000000000000000000005 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		F2F5E0FEC7BB124AD9A181AB /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -254,6 +307,25 @@
 
 /* Begin PBXShellScriptBuildPhase section */
 		C455C54764EA2E84CD69162F /* Compile Kotlin Framework */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Compile Kotlin Framework";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\nexport JAVA_HOME=\"/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home\"\nexport PATH=\"$JAVA_HOME/bin:$PATH\"\n\ncd \"$SRCROOT/..\"\n./gradlew :shared:application:embedAndSignAppleFrameworkForXcode\n";
+		};
+		A20000000000000000000006 /* Compile Kotlin Framework */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -328,6 +400,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		93EC5B171A7EAD3256E223FA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A20000000000000000000004 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -511,6 +590,66 @@
 			};
 			name = Debug;
 		};
+		A20000000000000000000008 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Super App";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aeshma.superapp;
+				PRODUCT_NAME = SuperApp;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A20000000000000000000009 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ARCHS = arm64;
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "${TEAM_ID}";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Super App";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.aeshma.superapp;
+				PRODUCT_NAME = SuperApp;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		B57D6B1571FB6B2322AF8466 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			baseConfigurationReferenceAnchor = D2425A14EE4FDA02FCA7CDF4 /* Configuration */;
@@ -657,6 +796,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A2000000000000000000000A /* Build configuration list for PBXNativeTarget "SuperApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A20000000000000000000008 /* Debug */,
+				A20000000000000000000009 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		B2F6E41C484D05D0E858D101 /* Build configuration list for PBXProject "iosApp" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -695,6 +843,11 @@
 			productName = ComposableArchitecture;
 		};
 		A10200000000000000000001 /* ComposableArchitecture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
+			productName = ComposableArchitecture;
+		};
+		A2000000000000000000000B /* ComposableArchitecture */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = A10000000000000000000001 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
 			productName = ComposableArchitecture;

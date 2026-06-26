@@ -1,13 +1,16 @@
 # Kotlin Multiplatform Multi-App Architecture
 
-This sample builds two independently installable products from one Kotlin Multiplatform codebase:
+This sample builds standalone products and a Super App product from one Kotlin Multiplatform codebase:
 
-| Product | Android application ID | iOS bundle ID | Default user |
-|---|---|---|---|
-| AppOne | `com.aeshma.appone` | `com.aeshma.appone` | `customer` |
-| AppTwo | `com.aeshma.apptwo` | `com.aeshma.apptwo` | `admin` |
+| Product | Android application ID | iOS bundle ID | Product ID | Experiences |
+|---|---|---|---|---|
+| AppOne | `com.aeshma.appone` | `com.aeshma.appone` | `AppOneStandalone` | AppOne |
+| AppTwo | `com.aeshma.apptwo` | `com.aeshma.apptwo` | `AppTwoStandalone` | AppTwo |
+| Super App | `com.aeshma.superapp` | `com.aeshma.superapp` | `SuperApp` | AppOne, AppTwo |
 
-This is not one application with an app switcher. Android flavors and iOS targets create different binaries. The selected binary injects an `AppId`; shared Kotlin configuration then determines the available features and behavior for the logged-in user.
+Standalone apps still create focused binaries for one app experience. The Super App is an installable product that acts as a gateway to multiple precompiled app experiences.
+
+The selected binary injects a `ProductId`. Shared Kotlin configuration resolves that product into one or more supported `AppId` experiences. A standalone product auto-enters its only experience; the Super App shows an experience picker before login.
 
 The feature implementations are present in the shared binary. This sample demonstrates runtime capability-based availability, not per-app binary exclusion.
 
@@ -15,8 +18,10 @@ The feature implementations are present in the shared binary. This sample demons
 
 ```text
 Android flavor / iOS target
-    -> injects AppId
-    -> Metro creates the shared runtime
+    -> injects ProductId
+    -> ProductCatalog resolves supported AppId experiences
+    -> standalone products auto-select, Super App shows a picker
+    -> Metro creates the selected experience runtime
     -> login calls AuthRepository
     -> AppCatalog resolves AppId + username
     -> AppContext contains typed capabilities
@@ -29,7 +34,9 @@ Android flavor / iOS target
 
 ```mermaid
 flowchart TD
-    Product["Android flavor or iOS target"] --> AppId["AppId"]
+    Product["Android flavor or iOS target"] --> ProductId["ProductId"]
+    ProductId --> ProductCatalog["ProductCatalog"]
+    ProductCatalog --> AppId["Selected AppId experience"]
     AppId --> Runtime["Metro AppRuntime"]
     Runtime --> Login["Login with username"]
     Login --> Auth["AuthRepository"]
@@ -46,16 +53,17 @@ flowchart TD
 
 The central rule is:
 
-> `AppId` selects configuration. Capabilities select features. Policies select behavior. Native UI renders the result.
+> `ProductId` selects the installed product. `AppId` selects the active experience. Capabilities select features. Policies select behavior. Native UI renders the result.
 
 ## The Four Decisions
 
 | Decision | Question | Implemented by |
 |---|---|---|
-| Product selection | Which installed app is running? | Android flavor or iOS target |
+| Product selection | Which installed product is running? | Android flavor or iOS target |
+| Experience selection | Which app experience is active inside this product? | `ProductCatalog` and the Super App picker |
 | Profile resolution | Which configuration belongs to this app and user? | `AppCatalog` |
 | Feature selection | Which features may the user enter? | `FeatureRegistry` |
-| Experience selection | What may the user do inside a feature? | `DeliveryPolicyResolver` and `DeliveryPolicy` |
+| Behavior selection | What may the user do inside a feature? | `DeliveryPolicyResolver` and `DeliveryPolicy` |
 
 These decisions are separate deliberately. Screens do not contain scattered checks for app names, usernames, or roles.
 
@@ -63,17 +71,21 @@ These decisions are separate deliberately. Screens do not contain scattered chec
 
 The platform packaging layer supplies the product identity.
 
-Android flavors define `BuildConfig.APP_ID` in `androidApp/build.gradle.kts`:
+Android flavors define `BuildConfig.PRODUCT_ID` in `androidApp/build.gradle.kts`:
 
 ```kotlin
 productFlavors {
     create("appOne") {
         applicationId = "com.aeshma.appone"
-        buildConfigField("String", "APP_ID", "\"AppOne\"")
+        buildConfigField("String", "PRODUCT_ID", "\"AppOneStandalone\"")
     }
     create("appTwo") {
         applicationId = "com.aeshma.apptwo"
-        buildConfigField("String", "APP_ID", "\"AppTwo\"")
+        buildConfigField("String", "PRODUCT_ID", "\"AppTwoStandalone\"")
+    }
+    create("superApp") {
+        applicationId = "com.aeshma.superapp"
+        buildConfigField("String", "PRODUCT_ID", "\"SuperApp\"")
     }
 }
 ```
@@ -81,10 +93,10 @@ productFlavors {
 `MainActivity` passes that identity into shared Compose UI:
 
 ```kotlin
-App(appId = AppId.fromExternalName(BuildConfig.APP_ID))
+ProductApp(productId = ProductId.fromExternalName(BuildConfig.PRODUCT_ID))
 ```
 
-iOS has two native entry points:
+iOS has three native entry points:
 
 ```swift
 // iosApp/AppOne/AppOneApp.swift
@@ -92,11 +104,30 @@ private let store = MultiAppStoreFactory.make(appIdName: "AppOne")
 
 // iosApp/AppTwo/AppTwoApp.swift
 private let store = MultiAppStoreFactory.make(appIdName: "AppTwo")
+
+// iosApp/AppSuper/SuperAppApp.swift
+private let productRoot = IOSProductCompositionRoot(productIdName: "SuperApp")
 ```
 
-Each `@main` app owns its store and passes it to `MultiAppRootView`. The store factory is the native composition boundary: it creates the product-specific live KMP client, derives initial state from app metadata, and injects that client into TCA. The root view only renders the supplied store.
+Each standalone `@main` app owns its store and passes it to `MultiAppRootView`. The Super App owns a small gateway view that reads supported experiences from shared Kotlin, then creates the selected experience store with the same `MultiAppStoreFactory` path used by standalone apps.
 
-`AppId` is used at composition and configuration boundaries. It should not become a global UI switch.
+`ProductId` is used at the packaging boundary. `AppId` is used after a product has selected an experience. They should stay separate: a Super App is not itself an `AppId`; it is a product that may launch multiple `AppId` experiences.
+
+### ProductCatalog
+
+`ProductCatalog` maps installable products to their supported experiences:
+
+```kotlin
+ProductDefinition(
+    id = ProductId.SuperApp,
+    displayName = "Super App",
+    supportedExperiences = setOf(AppId.AppOne, AppId.AppTwo),
+    defaultExperience = null,
+    showsExperiencePicker = true,
+)
+```
+
+`ProductRuntime` validates every selected experience against this allowlist. That keeps standalone apps locked to one experience while allowing the Super App to route into AppOne or AppTwo.
 
 ## 2. AppCatalog And AppContext
 
@@ -280,7 +311,7 @@ The iOS application is native SwiftUI backed by shared Kotlin business logic.
 
 | Shared KMP owns | Native iOS owns |
 |---|---|
-| App definitions and profile lookup | AppOne/AppTwo entry targets |
+| Product, app definitions and profile lookup | AppOne/AppTwo/SuperApp entry targets |
 | `AppCatalog` and `AppContext` | SwiftUI views and controls |
 | Capabilities and feature selection | TCA state, actions and navigation |
 | Delivery policies and actions | Native snapshot models |
@@ -346,7 +377,7 @@ class IOSAppCompositionRoot(appIdName: String) {
 The native path is:
 
 ```text
-AppOneApp/AppTwoApp
+AppOneApp/AppTwoApp/SuperAppApp
     -> MultiAppRootView
     -> TCA Store with live MultiAppClient
     -> IOSAppGateway actor
@@ -366,6 +397,7 @@ androidApp/                    Android shell and product flavors
 iosApp/
   AppOne/                     AppOne SwiftUI entry point and assets
   AppTwo/                     AppTwo SwiftUI entry point and assets
+  AppSuper/                   Super App SwiftUI gateway entry point and assets
   SharedIOS/
     NativeModels.swift        Native presentation snapshots
     MultiAppClient.swift      TCA dependency contract
@@ -379,7 +411,7 @@ shared/
   core/config/                Definitions, profiles, presets and catalog
   core/analytics/             Analytics abstraction
   features/delivery/          Delivery domain, repository and policies
-  application/                Metro graph, session and iOS composition root
+  application/                Product runtime, Metro graph, session and iOS composition roots
   ui/                         Shared Compose presentation used by Android
 ```
 
@@ -389,7 +421,8 @@ shared/
 
 ```text
 AppOne target/flavor
-    -> AppId("AppOne")
+    -> ProductId("AppOneStandalone")
+    -> default AppId("AppOne")
     -> login("customer")
     -> AppCatalog selects AppOne customer profile
     -> AppContext receives Customer delivery and Payments capabilities
@@ -402,13 +435,27 @@ AppOne target/flavor
 
 ```text
 AppTwo target/flavor
-    -> AppId("AppTwo")
+    -> ProductId("AppTwoStandalone")
+    -> default AppId("AppTwo")
     -> login("merchant")
     -> AppCatalog selects AppTwo merchant profile
     -> AppContext receives Merchant delivery and Reports capabilities
     -> FeatureRegistry returns Home, Delivery, Reports, Profile
     -> DeliveryPolicyResolver returns MerchantDeliveryPolicy
     -> SwiftUI/Compose renders those features and merchant actions
+```
+
+### Super App Customer
+
+```text
+SuperApp flavor
+    -> ProductId("SuperApp")
+    -> ProductCatalog exposes AppOne and AppTwo
+    -> user selects AppOne
+    -> login("customer")
+    -> AppCatalog selects AppOne customer profile
+    -> AppContext receives Customer delivery and Payments capabilities
+    -> FeatureRegistry returns Home, Delivery, Payments, Profile
 ```
 
 ## Running Android
@@ -418,7 +465,7 @@ Prerequisites: Android Studio, Android SDK 36, JDK 21, and an emulator or device
 1. Open the repository root in Android Studio.
 2. Wait for Gradle sync.
 3. Open **View > Tool Windows > Build Variants**.
-4. Select `appOneDebug` or `appTwoDebug` for `androidApp`.
+4. Select `appOneDebug`, `appTwoDebug`, or `superAppDebug` for `androidApp`.
 5. Select the `androidApp` run configuration and a device.
 6. Click **Run**.
 
@@ -427,6 +474,7 @@ Command-line builds:
 ```bash
 ./gradlew :androidApp:assembleAppOneDebug
 ./gradlew :androidApp:assembleAppTwoDebug
+./gradlew :androidApp:assembleSuperAppDebug
 ```
 
 ## Running iOS
@@ -434,11 +482,11 @@ Command-line builds:
 Prerequisites: full Xcode, an iOS Simulator runtime, JDK 21, and permission for Xcode to resolve and run the pinned Point-Free package macros.
 
 1. Open `iosApp/iosApp.xcodeproj` in Xcode.
-2. Select the `AppOne` or `AppTwo` scheme.
+2. Select the `AppOne`, `AppTwo`, or `SuperApp` scheme.
 3. Select an iPhone simulator.
 4. Press `Cmd+R`.
 
-Both targets build `SharedLogic.framework` with:
+All iOS targets build `SharedLogic.framework` with:
 
 ```bash
 ./gradlew :shared:application:embedAndSignAppleFrameworkForXcode
@@ -457,6 +505,12 @@ xcodebuild -project iosApp/iosApp.xcodeproj \
 
 xcodebuild -project iosApp/iosApp.xcodeproj \
   -scheme AppTwo \
+  -destination 'generic/platform=iOS Simulator' \
+  -skipMacroValidation \
+  CODE_SIGNING_ALLOWED=NO build
+
+xcodebuild -project iosApp/iosApp.xcodeproj \
+  -scheme SuperApp \
   -destination 'generic/platform=iOS Simulator' \
   -skipMacroValidation \
   CODE_SIGNING_ALLOWED=NO build
@@ -489,9 +543,10 @@ The tests cover catalog lookup and validation, capability-based feature selectio
 1. Add an `AppId`.
 2. Create an `AppDefinition` with profiles and capability presets.
 3. Register it in `defaultAppDefinitions()`.
-4. Add an Android flavor.
-5. Add an iOS target and entry point.
-6. Add catalog and platform wiring tests.
+4. Decide which products can launch it and update `defaultProductDefinitions()`.
+5. Add an Android flavor only if this app should also ship as a standalone product.
+6. Add an iOS target and entry point only if this app should also ship as a standalone product.
+7. Add catalog and platform wiring tests.
 
 No new feature or policy branch is needed when the app reuses existing capabilities.
 
@@ -509,7 +564,7 @@ No new feature or policy branch is needed when the app reuses existing capabilit
 ## Rules To Preserve
 
 1. Platform packaging injects product identity.
-2. `AppCatalog` resolves product and profile configuration.
+2. `ProductCatalog` resolves supported experiences; `AppCatalog` resolves app and profile configuration.
 3. `AppContext` is the typed authenticated source of truth.
 4. Capabilities control access; role names do not act as permission checks.
 5. `FeatureRegistry` controls feature visibility.
@@ -518,3 +573,4 @@ No new feature or policy branch is needed when the app reuses existing capabilit
 8. Metro constructs shared dependencies; TCA Dependencies injects native clients.
 9. Unknown apps and profiles fail explicitly.
 10. Stable IDs remain separate from display text.
+11. `ProductId`, `AppId`, and tenant/customer IDs stay separate.

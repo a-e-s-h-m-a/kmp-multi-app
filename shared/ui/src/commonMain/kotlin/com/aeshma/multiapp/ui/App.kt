@@ -34,11 +34,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.aeshma.multiapp.application.AppSession
+import com.aeshma.multiapp.application.AppRuntime
 import com.aeshma.multiapp.application.FeatureDescriptor
+import com.aeshma.multiapp.application.ProductRuntime
 import com.aeshma.multiapp.application.createAppRuntime
+import com.aeshma.multiapp.application.createProductRuntime
 import com.aeshma.multiapp.core.model.AppContext
 import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.FeatureId
+import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.feature.delivery.DeliveryAction
 import com.aeshma.multiapp.feature.delivery.DeliveryOrder
 import kotlinx.coroutines.launch
@@ -54,13 +58,47 @@ private sealed interface Screen {
 @OptIn(ExperimentalLayoutApi::class)
 fun App(appId: AppId = AppId.AppOne) {
     val runtime = remember(appId) { createAppRuntime(appId) }
-    val session = runtime.session
-    var selectedUser by remember(runtime) { mutableStateOf(runtime.appDefinition.defaultUsername) }
-    var context by remember { mutableStateOf<AppContext?>(null) }
-    var features by remember { mutableStateOf<List<FeatureDescriptor>>(emptyList()) }
-    var screen by remember { mutableStateOf<Screen>(Screen.Login) }
-    val coroutineScope = rememberCoroutineScope()
+    AppThemeContainer {
+        ExperienceApp(runtime = runtime, onExitExperience = null)
+    }
+}
 
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+fun ProductApp(productId: ProductId = ProductId.AppOneStandalone) {
+    val productRuntime = remember(productId) { createProductRuntime(productId) }
+    var selectedExperience by remember(productRuntime) {
+        mutableStateOf(productRuntime.defaultExperience)
+    }
+
+    AppThemeContainer {
+        val experience = selectedExperience
+        if (experience == null) {
+            ExperiencePickerScreen(
+                productRuntime = productRuntime,
+                onExperienceSelected = { selectedExperience = it },
+            )
+        } else {
+            val runtime = remember(productRuntime, experience) {
+                productRuntime.appRuntimeFor(experience)
+            }
+            ExperienceApp(
+                runtime = runtime,
+                onExitExperience = if (productRuntime.productDefinition.showsExperiencePicker) {
+                    {
+                        runtime.session.logout()
+                        selectedExperience = null
+                    }
+                } else {
+                    null
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppThemeContainer(content: @Composable () -> Unit) {
     MaterialTheme {
         Surface(
             modifier = Modifier
@@ -72,42 +110,108 @@ fun App(appId: AppId = AppId.AppOne) {
                     .safeContentPadding()
                     .padding(20.dp),
             ) {
-                when (val currentScreen = screen) {
-                    Screen.Login -> LoginScreen(
-                        appName = runtime.appDefinition.displayName,
-                        users = runtime.appDefinition.supportedUsernames,
-                        selectedUser = selectedUser,
-                        onUserSelected = { selectedUser = it },
-                        onLogin = {
-                            coroutineScope.launch {
-                                context = session.login(runtime.appId, selectedUser)
-                                features = session.availableFeatures()
-                                screen = Screen.Features
-                            }
-                        },
+                content()
+            }
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun ExperiencePickerScreen(
+    productRuntime: ProductRuntime,
+    onExperienceSelected: (AppId) -> Unit,
+) {
+    LazyColumn(
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 24.dp),
+    ) {
+        item {
+            Text(
+                productRuntime.productDefinition.displayName,
+                style = MaterialTheme.typography.headlineLarge,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                "Choose which app experience to launch.",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        items(productRuntime.supportedExperiences, key = { it.id.externalName }) { experience ->
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onExperienceSelected(experience.id) },
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        experience.displayName,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold,
                     )
-                    Screen.Features -> FeatureListScreen(
-                        context = requireNotNull(context),
-                        features = features,
-                        onFeatureTapped = { feature ->
-                            session.trackFeatureOpened(feature.id)
-                            screen = Screen.Feature(feature.id)
-                        },
-                        onLogout = {
-                            context = null
-                            features = emptyList()
-                            screen = Screen.Login
-                        },
-                    )
-                    is Screen.Feature -> FeatureScreen(
-                        featureId = currentScreen.id,
-                        session = session,
-                        context = requireNotNull(context),
-                        onBack = { screen = Screen.Features },
+                    Text(
+                        "Default user: ${experience.defaultUsername}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
         }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun ExperienceApp(
+    runtime: AppRuntime,
+    onExitExperience: (() -> Unit)?,
+) {
+    val session = runtime.session
+    var selectedUser by remember(runtime) { mutableStateOf(runtime.appDefinition.defaultUsername) }
+    var context by remember(runtime) { mutableStateOf<AppContext?>(null) }
+    var features by remember(runtime) { mutableStateOf<List<FeatureDescriptor>>(emptyList()) }
+    var screen by remember(runtime) { mutableStateOf<Screen>(Screen.Login) }
+    val coroutineScope = rememberCoroutineScope()
+
+    when (val currentScreen = screen) {
+        Screen.Login -> LoginScreen(
+            appName = runtime.appDefinition.displayName,
+            users = runtime.appDefinition.supportedUsernames,
+            selectedUser = selectedUser,
+            onUserSelected = { selectedUser = it },
+            onLogin = {
+                coroutineScope.launch {
+                    context = session.login(runtime.appId, selectedUser)
+                    features = session.availableFeatures()
+                    screen = Screen.Features
+                }
+            },
+            onExitExperience = onExitExperience,
+        )
+        Screen.Features -> FeatureListScreen(
+            context = requireNotNull(context),
+            features = features,
+            onFeatureTapped = { feature ->
+                session.trackFeatureOpened(feature.id)
+                screen = Screen.Feature(feature.id)
+            },
+            onLogout = {
+                context = null
+                features = emptyList()
+                screen = Screen.Login
+            },
+        )
+        is Screen.Feature -> FeatureScreen(
+            featureId = currentScreen.id,
+            session = session,
+            context = requireNotNull(context),
+            onBack = { screen = Screen.Features },
+        )
     }
 }
 
@@ -119,6 +223,7 @@ private fun LoginScreen(
     selectedUser: String,
     onUserSelected: (String) -> Unit,
     onLogin: () -> Unit,
+    onExitExperience: (() -> Unit)?,
 ) {
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -147,6 +252,9 @@ private fun LoginScreen(
             }
         }
         item { Button(onClick = onLogin) { Text("Login") } }
+        if (onExitExperience != null) {
+            item { OutlinedButton(onClick = onExitExperience) { Text("Switch experience") } }
+        }
     }
 }
 

@@ -41,13 +41,19 @@ android {
             dimension = "app"
             applicationId = "com.aeshma.appone"
             resValue("string", "app_name", "AppOne")
-            buildConfigField("String", "APP_ID", "\"AppOne\"")
+            buildConfigField("String", "PRODUCT_ID", "\"AppOneStandalone\"")
         }
         create("appTwo") {
             dimension = "app"
             applicationId = "com.aeshma.apptwo"
             resValue("string", "app_name", "AppTwo")
-            buildConfigField("String", "APP_ID", "\"AppTwo\"")
+            buildConfigField("String", "PRODUCT_ID", "\"AppTwoStandalone\"")
+        }
+        create("superApp") {
+            dimension = "app"
+            applicationId = "com.aeshma.superapp"
+            resValue("string", "app_name", "Super App")
+            buildConfigField("String", "PRODUCT_ID", "\"SuperApp\"")
         }
     }
     packaging {

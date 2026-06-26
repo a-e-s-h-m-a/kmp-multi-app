@@ -1,11 +1,13 @@
 package com.aeshma.multiapp.application
 
 import com.aeshma.multiapp.core.analytics.ConsoleAnalyticsClient
+import com.aeshma.multiapp.core.config.UnsupportedExperienceException
 import com.aeshma.multiapp.core.config.LocalAuthRepository
 import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.config.AppCatalog
 import com.aeshma.multiapp.core.config.defaultAppDefinitions
+import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.feature.delivery.DeliveryPolicyResolver
 import com.aeshma.multiapp.feature.delivery.SampleDeliveryRepository
 import kotlin.coroutines.Continuation
@@ -24,6 +26,36 @@ class AppRuntimeTest {
 
         assertEquals(AppId.AppTwo, runtime.appId)
         assertEquals("admin", runtime.appDefinition.defaultUsername)
+    }
+
+    @Test
+    fun standaloneProductAutoTargetsSingleExperience() {
+        val runtime = createProductRuntime(ProductId.AppOneStandalone)
+
+        assertEquals(ProductId.AppOneStandalone, runtime.productId)
+        assertEquals(AppId.AppOne, runtime.defaultExperience)
+        assertEquals(listOf(AppId.AppOne), runtime.supportedExperiences.map { it.id })
+        assertEquals(AppId.AppOne, runtime.appRuntimeFor(AppId.AppOne).appId)
+    }
+
+    @Test
+    fun superAppCanLaunchMultipleExperiences() {
+        val runtime = createProductRuntime(ProductId.fromExternalName("superapp"))
+
+        assertEquals(ProductId.SuperApp, runtime.productId)
+        assertEquals(null, runtime.defaultExperience)
+        assertEquals(listOf(AppId.AppOne, AppId.AppTwo), runtime.supportedExperiences.map { it.id })
+        assertEquals("customer", runtime.appRuntimeFor(AppId.AppOne).appDefinition.defaultUsername)
+        assertEquals("admin", runtime.appRuntimeFor(AppId.AppTwo).appDefinition.defaultUsername)
+    }
+
+    @Test
+    fun productRuntimeRejectsUnsupportedExperiences() {
+        val runtime = createProductRuntime(ProductId.AppOneStandalone)
+
+        assertFailsWith<UnsupportedExperienceException> {
+            runtime.appRuntimeFor(AppId.AppTwo)
+        }
     }
 
     @Test

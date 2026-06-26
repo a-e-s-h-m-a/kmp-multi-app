@@ -1,6 +1,7 @@
 package com.aeshma.multiapp.core.config
 
 import com.aeshma.multiapp.core.model.AppId
+import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.core.model.UserCapabilities
 import com.aeshma.multiapp.core.model.UserType
 import kotlin.test.Test
@@ -38,6 +39,30 @@ class AppCatalogTest {
     fun unknownAppsHaveATypeSpecificFailure() {
         assertFailsWith<UnknownAppException> {
             catalog.definition(AppId("MissingApp"))
+        }
+    }
+
+    @Test
+    fun productCatalogDefinesStandaloneAndSuperAppProducts() {
+        val productCatalog = ProductCatalog(defaultProductDefinitions())
+
+        assertEquals(
+            setOf(AppId.AppOne),
+            productCatalog.definition(ProductId.AppOneStandalone).supportedExperiences,
+        )
+        assertEquals(
+            setOf(AppId.AppOne, AppId.AppTwo),
+            productCatalog.definition(ProductId.fromExternalName(" superapp ")).supportedExperiences,
+        )
+        assertNull(productCatalog.definition(ProductId.SuperApp).defaultExperience)
+    }
+
+    @Test
+    fun unknownProductsHaveATypeSpecificFailure() {
+        val productCatalog = ProductCatalog(defaultProductDefinitions())
+
+        assertFailsWith<UnknownProductException> {
+            productCatalog.definition(ProductId("MissingProduct"))
         }
     }
 

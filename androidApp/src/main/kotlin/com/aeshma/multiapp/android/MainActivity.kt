@@ -6,8 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
-import com.aeshma.multiapp.core.model.AppId
-import com.aeshma.multiapp.ui.App
+import com.aeshma.multiapp.core.model.ProductId
+import com.aeshma.multiapp.ui.ProductApp
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -15,7 +15,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            App(appId = AppId.fromExternalName(BuildConfig.APP_ID))
+            ProductApp(productId = ProductId.fromExternalName(BuildConfig.PRODUCT_ID))
         }
     }
 }
@@ -23,5 +23,5 @@ class MainActivity : ComponentActivity() {
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    App(appId = AppId.AppOne)
+    ProductApp(productId = ProductId.AppOneStandalone)
 }
