@@ -42,7 +42,7 @@ class PermissionTemplateCatalog(definitions: List<PermissionTemplate>) {
 
     fun capabilitiesFor(roles: Set<RoleId>): CommerceCapabilities =
         roles.fold(CommerceCapabilities.none()) { capabilities, role ->
-            capabilities.plus(definitionsByName[role.value.lowercase()]?.commerceCapabilities ?: CommerceCapabilities.none())
+            capabilities.plus(definitionsByName[role.value.lowercase()]?.grantedCapabilities ?: CommerceCapabilities.none())
         }
 }
 
@@ -54,7 +54,7 @@ fun defaultExperienceDefinitions(): List<ExperienceDefinition> = listOf(
         logo = null,
         allowedSites = setOf("BHNP"),
         theme = "SSMG Boutique Theme",
-        commerceCapabilities = CommerceCapabilities.of(
+        supportedCapabilities = CommerceCapabilities.of(
             "orders.view",
             "orders.edit",
             "lists.view",
@@ -72,7 +72,7 @@ fun defaultExperienceDefinitions(): List<ExperienceDefinition> = listOf(
         logo = null,
         allowedSites = setOf("USBL"),
         theme = "Broadline Theme",
-        commerceCapabilities = CommerceCapabilities.of(
+        supportedCapabilities = CommerceCapabilities.of(
             "orders.view",
             "orders.notifications",
             "lists.view",
@@ -93,19 +93,39 @@ fun defaultBusinessUnitDefinitions(): List<BusinessUnitDefinition> = listOf(
     BusinessUnitDefinition(
         id = BusinessUnitId.SSMG,
         allowedExperiences = setOf(AppId.AppOne),
-        commerceCapabilities = CommerceCapabilities.of("orders.view", "catalog.view", "delivery.view"),
+        allowedCapabilities = CommerceCapabilities.of(
+            "orders.view",
+            "orders.edit",
+            "lists.view",
+            "catalog.view",
+            "pdp.view",
+            "delivery.view",
+            "delivery.status",
+        ),
     ),
     BusinessUnitDefinition(
         id = BusinessUnitId.USBL,
         allowedExperiences = setOf(AppId.AppTwo),
-        commerceCapabilities = CommerceCapabilities.of("orders.view", "lists.view", "catalog.view", "delivery.view"),
+        allowedCapabilities = CommerceCapabilities.of(
+            "orders.view",
+            "orders.notifications",
+            "lists.view",
+            "lists.purchaseHistory",
+            "catalog.view",
+            "catalog.recommendations",
+            "pdp.view",
+            "delivery.view",
+            "delivery.progress",
+            "delivery.map",
+            "delivery.invoices",
+        ),
     ),
 )
 
 fun defaultPermissionTemplates(): List<PermissionTemplate> = listOf(
     PermissionTemplate(
         role = RoleId.Customer,
-        commerceCapabilities = CommerceCapabilities.of(
+        grantedCapabilities = CommerceCapabilities.of(
             "orders.view",
             "lists.view",
             "catalog.view",
@@ -116,7 +136,7 @@ fun defaultPermissionTemplates(): List<PermissionTemplate> = listOf(
     ),
     PermissionTemplate(
         role = RoleId.CustomerAdmin,
-        commerceCapabilities = CommerceCapabilities.of(
+        grantedCapabilities = CommerceCapabilities.of(
             "orders.view",
             "orders.edit",
             "orders.notifications",

@@ -52,7 +52,7 @@ So a Super App product can launch the AppOne or AppTwo experience, but the Super
 
 The experience layer answers:
 
-> What experiences exist, and what are their default commerce capabilities?
+> What experiences exist, and what commerce capabilities can those experiences support?
 
 The hard-coded config currently defines two experiences:
 
@@ -62,7 +62,7 @@ Newport&Buckhead
   theme = SSMG Boutique Theme
   allowedSites = BHNP
   supportedBusinessUnits = SSMG
-  commerceCapabilities =
+  supportedCapabilities =
     orders.view
     orders.edit
     lists.view
@@ -76,7 +76,7 @@ Shop
   theme = Broadline Theme
   allowedSites = USBL
   supportedBusinessUnits = USBL
-  commerceCapabilities =
+  supportedCapabilities =
     orders.view
     orders.notifications
     lists.view
@@ -98,7 +98,7 @@ They do not mean:
 
 > Every user in this experience can do every one of these things.
 
-The final user capability set is resolved later by merging business-unit capabilities, experience capabilities, role permission templates, and explicit user permissions.
+The final user capability set is resolved later by intersecting user grants with business-unit allowed capabilities and experience supported capabilities.
 
 ## 3. Business Unit Config Layer
 
@@ -111,24 +111,35 @@ Current hard-coded BU config:
 ```text
 SSMG
   allowedExperiences = AppOne
-  commerceCapabilities =
+  allowedCapabilities =
     orders.view
+    orders.edit
+    lists.view
     catalog.view
+    pdp.view
     delivery.view
+    delivery.status
 
 USBL
   allowedExperiences = AppTwo
-  commerceCapabilities =
+  allowedCapabilities =
     orders.view
+    orders.notifications
     lists.view
+    lists.purchaseHistory
     catalog.view
+    catalog.recommendations
+    pdp.view
     delivery.view
+    delivery.progress
+    delivery.map
+    delivery.invoices
 ```
 
 The BU participates in two ways:
 
 1. It filters available experiences.
-2. It contributes baseline commerce capabilities.
+2. It constrains the final user capability set.
 
 The experience availability rule is an intersection:
 
@@ -288,37 +299,35 @@ It only asks:
 PermissionId.DeliveryMap in context.commerceCapabilities
 ```
 
-## 6. Final Commerce Capability Merge
+## 6. Final Commerce Capability Resolution
 
-The final permission set is the union of:
+The final permission set is not a raw union. Role templates and explicit user permissions are grants, while business-unit and experience config are ceilings.
 
 ```text
-business-unit capabilities
-+ experience capabilities
-+ role template capabilities
-+ explicit user permissions
+user grants =
+  role template capabilities
+    ∪ explicit user permissions
+
+effective capabilities =
+  user grants
+    ∩ businessUnit.allowedCapabilities
+    ∩ experience.supportedCapabilities
 ```
 
 In code, this is represented as:
 
 ```kotlin
-businessUnit.commerceCapabilities
-    .plus(experience.commerceCapabilities)
-    .plus(permissionTemplateCatalog.capabilitiesFor(roles))
+val userGrantedCapabilities = permissionTemplateCatalog.capabilitiesFor(roles)
     .plus(CommerceCapabilities(explicitPermissions))
+
+userGrantedCapabilities
+    .intersect(businessUnit.allowedCapabilities)
+    .intersect(experience.supportedCapabilities)
 ```
 
 ### Example: AppOne Customer
 
-Business unit `SSMG` contributes:
-
-```text
-orders.view
-catalog.view
-delivery.view
-```
-
-Experience `Newport&Buckhead` contributes:
+Business unit `SSMG` allows:
 
 ```text
 orders.view
@@ -330,7 +339,19 @@ delivery.view
 delivery.status
 ```
 
-Role `CUSTOMER` contributes:
+Experience `Newport&Buckhead` supports:
+
+```text
+orders.view
+orders.edit
+lists.view
+catalog.view
+pdp.view
+delivery.view
+delivery.status
+```
+
+Role `CUSTOMER` grants:
 
 ```text
 orders.view
@@ -351,7 +372,6 @@ Final resolved set:
 
 ```text
 orders.view
-orders.edit
 lists.view
 catalog.view
 pdp.view
@@ -372,22 +392,12 @@ Delivery
 Enabled tweaks:
 
 ```text
-Orders: orders.edit
 Delivery: delivery.status
 ```
 
 ### Example: AppTwo Admin/Merchant-Like User
 
-Business unit `USBL` contributes:
-
-```text
-orders.view
-lists.view
-catalog.view
-delivery.view
-```
-
-Experience `Shop` contributes:
+Business unit `USBL` allows:
 
 ```text
 orders.view
@@ -403,7 +413,23 @@ delivery.map
 delivery.invoices
 ```
 
-Role `CUSTOMER_ADMIN` contributes:
+Experience `Shop` supports:
+
+```text
+orders.view
+orders.notifications
+lists.view
+lists.purchaseHistory
+catalog.view
+catalog.recommendations
+pdp.view
+delivery.view
+delivery.progress
+delivery.map
+delivery.invoices
+```
+
+Role `CUSTOMER_ADMIN` grants:
 
 ```text
 orders.view
@@ -428,24 +454,21 @@ Final resolved set includes:
 
 ```text
 orders.view
-orders.edit
 orders.notifications
 lists.view
-lists.edit
 lists.purchaseHistory
 catalog.view
 catalog.recommendations
 pdp.view
-pdp.internalDetails
 delivery.view
-delivery.edit
 delivery.progress
-delivery.status
 delivery.map
 delivery.invoices
 ```
 
-The user sees the same major feature shells, but with more enabled tweaks inside those features.
+The role grants more than the Shop experience and USBL business unit allow. For example, `orders.edit`, `lists.edit`, `pdp.internalDetails`, `delivery.edit`, and `delivery.status` are clipped out because they are not in both the BU ceiling and the experience ceiling.
+
+The user still sees the same major feature shells, but only the tweaks permitted by all layers are enabled.
 
 ## 7. Feature Registry Layer
 

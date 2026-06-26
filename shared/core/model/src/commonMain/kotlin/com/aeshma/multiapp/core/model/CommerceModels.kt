@@ -65,6 +65,9 @@ data class CommerceCapabilities(
     fun plus(other: CommerceCapabilities): CommerceCapabilities =
         CommerceCapabilities(permissions + other.permissions)
 
+    fun intersect(other: CommerceCapabilities): CommerceCapabilities =
+        CommerceCapabilities(permissions.intersect(other.permissions))
+
     companion object {
         fun of(vararg permission: PermissionId): CommerceCapabilities =
             CommerceCapabilities(permission.toSet())

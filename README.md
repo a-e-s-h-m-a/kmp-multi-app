@@ -167,7 +167,7 @@ Roles and permissions are also represented as config-shaped objects:
 ```kotlin
 PermissionTemplate(
     role = RoleId.CustomerAdmin,
-    commerceCapabilities = CommerceCapabilities.of(
+    grantedCapabilities = CommerceCapabilities.of(
         "orders.view",
         "orders.edit",
         "lists.edit",
@@ -177,7 +177,7 @@ PermissionTemplate(
 )
 ```
 
-`ProductRuntime.resolvedCommerceCapabilities(...)` combines business-unit capabilities, experience capabilities, role templates, and explicit permissions into one capability set. Feature registries and feature policies should read from that resolved set instead of checking raw roles in UI code.
+`ProductRuntime.resolvedCommerceCapabilities(...)` treats role templates and explicit user permissions as user grants, then intersects those grants with business-unit allowed capabilities and experience supported capabilities. Feature registries and feature policies should read from that resolved set instead of checking raw roles in UI code.
 
 ## 2. AppCatalog And AppContext
 
@@ -248,7 +248,14 @@ data class AppContext(
 )
 ```
 
-The old typed `UserCapabilities` remains because the delivery policy sample still demonstrates strategy-based behavior. The commerce feature list now reads from `commerceCapabilities`, which is built from experience config, business-unit config, role permission templates, and explicit user permissions.
+The old typed `UserCapabilities` remains because the delivery policy sample still demonstrates strategy-based behavior. The commerce feature list now reads from `commerceCapabilities`, which is resolved by intersecting user grants with experience and business-unit capability ceilings.
+
+```text
+effective capabilities =
+    (role template grants ∪ explicit user permissions)
+        ∩ businessUnit.allowedCapabilities
+        ∩ experience.supportedCapabilities
+```
 
 In production, `LocalAuthRepository` could be replaced by a remote repository that maps an API response into the same `AppContext`. The rest of the app should continue to read `AppContext` rather than raw network payloads.
 

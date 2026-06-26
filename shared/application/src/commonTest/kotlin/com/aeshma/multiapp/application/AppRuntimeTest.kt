@@ -17,9 +17,11 @@ import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.startCoroutine
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class AppRuntimeTest {
     @Test
@@ -66,7 +68,7 @@ class AppRuntimeTest {
     }
 
     @Test
-    fun commerceCapabilitiesCombineBusinessUnitExperienceRoleAndExplicitCapabilities() {
+    fun commerceCapabilitiesIntersectUserGrantsWithBusinessUnitAndExperienceCeilings() {
         val runtime = createProductRuntime(ProductId.SuperApp)
 
         val capabilities = runtime.resolvedCommerceCapabilities(
@@ -74,11 +76,13 @@ class AppRuntimeTest {
             businessUnitId = BusinessUnitId.USBL,
             roles = setOf(RoleId.CustomerAdmin),
         )
+        val permissions = capabilities.permissions.map { it.value }.toSet()
 
-        assertEquals(true, "orders.view" in capabilities.permissions.map { it.value })
-        assertEquals(true, "orders.edit" in capabilities.permissions.map { it.value })
-        assertEquals(true, "delivery.map" in capabilities.permissions.map { it.value })
-        assertEquals(true, "pdp.internalDetails" in capabilities.permissions.map { it.value })
+        assertTrue("orders.view" in permissions)
+        assertTrue("orders.notifications" in permissions)
+        assertTrue("delivery.map" in permissions)
+        assertFalse("orders.edit" in permissions)
+        assertFalse("pdp.internalDetails" in permissions)
     }
 
     @Test
@@ -112,7 +116,7 @@ class AppRuntimeTest {
         val registry = FeatureRegistry()
         val cases = listOf(
             Triple(AppId.AppOne, "customer", listOf("orders", "lists", "catalog", "product-details", "delivery")),
-            Triple(AppId.AppOne, "driver", listOf("orders", "lists", "catalog", "product-details", "delivery")),
+            Triple(AppId.AppOne, "driver", listOf("delivery")),
             Triple(AppId.AppTwo, "admin", listOf("orders", "lists", "catalog", "product-details", "delivery")),
             Triple(AppId.AppTwo, "nod", listOf("orders", "lists", "catalog", "product-details", "delivery")),
         )

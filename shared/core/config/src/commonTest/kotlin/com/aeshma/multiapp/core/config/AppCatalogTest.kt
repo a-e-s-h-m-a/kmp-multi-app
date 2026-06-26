@@ -114,7 +114,7 @@ class AppCatalogTest {
                         logo = null,
                         allowedSites = setOf("APP3"),
                         theme = "App Three Theme",
-                        commerceCapabilities = CommerceCapabilities.of("orders.view"),
+                        supportedCapabilities = CommerceCapabilities.of("orders.view"),
                         supportedBusinessUnits = setOf(appThreeBu),
                     ),
                 ),
@@ -124,7 +124,7 @@ class AppCatalogTest {
                     BusinessUnitDefinition(
                         id = appThreeBu,
                         allowedExperiences = setOf(appThree),
-                        commerceCapabilities = CommerceCapabilities.of("catalog.view"),
+                        allowedCapabilities = CommerceCapabilities.of("catalog.view"),
                     ),
                 ),
             ),

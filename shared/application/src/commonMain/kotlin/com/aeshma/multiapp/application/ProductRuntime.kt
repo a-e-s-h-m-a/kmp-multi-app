@@ -65,10 +65,12 @@ class ProductRuntime internal constructor(
             throw UnsupportedExperienceException(productId, appId)
         }
 
-        return businessUnit.commerceCapabilities
-            .plus(experience.commerceCapabilities)
-            .plus(permissionTemplateCatalog.capabilitiesFor(roles))
+        val userGrantedCapabilities = permissionTemplateCatalog.capabilitiesFor(roles)
             .plus(explicitCapabilities)
+
+        return userGrantedCapabilities
+            .intersect(businessUnit.allowedCapabilities)
+            .intersect(experience.supportedCapabilities)
     }
 
     fun appRuntimeFor(appId: AppId): AppRuntime {

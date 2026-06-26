@@ -12,7 +12,7 @@ data class ExperienceDefinition(
     val logo: String?,
     val allowedSites: Set<String>,
     val theme: String,
-    val commerceCapabilities: CommerceCapabilities,
+    val supportedCapabilities: CommerceCapabilities,
     val supportedBusinessUnits: Set<BusinessUnitId>,
 ) {
     init {
@@ -25,7 +25,7 @@ data class ExperienceDefinition(
 data class BusinessUnitDefinition(
     val id: BusinessUnitId,
     val allowedExperiences: Set<AppId>,
-    val commerceCapabilities: CommerceCapabilities,
+    val allowedCapabilities: CommerceCapabilities,
 ) {
     init {
         require(allowedExperiences.isNotEmpty()) { "Business unit must allow at least one experience." }
@@ -34,5 +34,5 @@ data class BusinessUnitDefinition(
 
 data class PermissionTemplate(
     val role: RoleId,
-    val commerceCapabilities: CommerceCapabilities,
+    val grantedCapabilities: CommerceCapabilities,
 )

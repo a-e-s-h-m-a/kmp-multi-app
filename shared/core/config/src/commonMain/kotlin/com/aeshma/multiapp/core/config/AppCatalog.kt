@@ -90,9 +90,11 @@ class AppCatalog(
             "Experience '${appId.externalName}' is not allowed for business unit '${businessUnit.id.value}'."
         }
 
-        return businessUnit.commerceCapabilities
-            .plus(experience.commerceCapabilities)
-            .plus(permissionTemplateCatalog.capabilitiesFor(roles))
+        val userGrantedCapabilities = permissionTemplateCatalog.capabilitiesFor(roles)
             .plus(CommerceCapabilities(explicitPermissions))
+
+        return userGrantedCapabilities
+            .intersect(businessUnit.allowedCapabilities)
+            .intersect(experience.supportedCapabilities)
     }
 }
