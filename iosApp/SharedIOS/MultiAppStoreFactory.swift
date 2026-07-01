@@ -16,4 +16,20 @@ enum MultiAppStoreFactory {
             $0.multiAppClient = client
         }
     }
+
+    static func makeProduct(productIdName: String) -> StoreOf<MultiAppFeature> {
+        let client = MultiAppClient.liveProduct(productIdName: productIdName)
+
+        return Store(
+            initialState: MultiAppFeature.State(
+                appName: client.appName,
+                supportedUsernames: client.supportedUsernames,
+                selectedUsername: client.defaultUsername
+            )
+        ) {
+            MultiAppFeature()
+        } withDependencies: {
+            $0.multiAppClient = client
+        }
+    }
 }

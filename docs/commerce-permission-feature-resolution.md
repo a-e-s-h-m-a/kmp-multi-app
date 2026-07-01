@@ -1,195 +1,120 @@
 # Commerce Permission And Feature Resolution
 
-This document explains how the sample resolves product, experience, business-unit, role, permission, feature, tweak, and business-action decisions.
+This document explains how the sample resolves configured experiences, business units, roles, permissions, feature visibility, tweaks, and simulated business actions.
 
-The core idea is to keep these questions separate:
+## Terms
 
-1. What product binary is installed?
-2. Which app experience is active?
-3. Who logged in, from which business unit, with which roles and permissions?
-4. Which features, tweaks, and business actions should be available?
+| Term | Meaning |
+|---|---|
+| Product | Installed shell/binary, such as AppOne, AppTwo, or SuperApp. |
+| `ProductId` | Stable product key: `AppOneStandalone`, `AppTwoStandalone`, `SuperApp`. |
+| App shell | Runtime host app id: `AppOne` or `AppTwo`. |
+| Experience | Configured business experience such as `Newport&Buckhead` or `Shop`. |
+| BU | Business unit returned by login, such as `SSMG`, `USBL`, or `CABL`. |
+| Role | Coarse user grant such as `CUSTOMER_ADMIN` or `DELIVERY_USER`. |
+| Permission/capability | Fine-grained commerce permission such as `orders.edit`. |
 
-That separation lets standalone apps and the Super App share the same downstream runtime once an experience is selected.
+The main correction in this branch is that an experience is not the same as `AppOne` or `AppTwo`. Experiences are configured records that may launch through a host app shell.
 
-## 1. Product Layer
+## Product Layer
 
-The product layer answers:
+The product layer answers: what app did the user install?
 
-> What did the user install?
+| Product ID | Display | Supported configured experiences |
+|---|---|---|
+| `AppOneStandalone` | AppOne | `Shop` |
+| `AppTwoStandalone` | AppTwo | `Newport&Buckhead` |
+| `SuperApp` | Super App | `Newport&Buckhead`, `Shop` |
 
-Examples:
+Single-app products support one configured experience. SuperApp supports both.
 
-- AppOne standalone
-- AppTwo standalone
-- Super App
+## Experience Config Layer
 
-This is represented by `ProductId`.
+The experience layer answers: what configured experiences exist, which BUs can use them, and what capability ceiling does each experience support?
 
-The Android flavor or iOS target injects the product identity:
-
-- `AppOneStandalone`
-- `AppTwoStandalone`
-- `SuperApp`
-
-`ProductCatalog` maps each product to the app experiences it can host:
-
-```text
-AppOneStandalone -> AppOne
-AppTwoStandalone -> AppTwo
-SuperApp         -> AppOne, AppTwo
-```
-
-The Super App is not itself an app experience. It is a gateway product that can route into multiple app experiences.
-
-```text
-ProductId = installed shell / binary
-AppId     = selected experience inside that shell
-```
-
-So a Super App product can launch the AppOne or AppTwo experience, but the Super App itself is not AppOne or AppTwo.
-
-## 2. Experience Config Layer
-
-The experience layer answers:
-
-> What experiences exist, and what commerce capabilities can those experiences support?
-
-The hard-coded config currently defines two experiences:
-
-```text
-Newport&Buckhead
-  appId = AppOne
-  theme = SSMG Boutique Theme
-  allowedSites = BHNP
-  supportedBusinessUnits = SSMG
-  supportedCapabilities =
-    orders.view
-    orders.edit
-    lists.view
-    catalog.view
-    pdp.view
-    delivery.view
-    delivery.status
-
-Shop
-  appId = AppTwo
-  theme = Broadline Theme
-  allowedSites = USBL
-  supportedBusinessUnits = USBL
-  supportedCapabilities =
-    orders.view
-    orders.notifications
-    lists.view
-    lists.purchaseHistory
-    catalog.view
-    catalog.recommendations
-    pdp.view
-    delivery.view
-    delivery.progress
-    delivery.map
-    delivery.invoices
-```
+| Experience ID | Display | Host app shell | Supported BUs | Theme |
+|---|---|---|---|---|
+| `newport-buckhead` | Newport&Buckhead | `AppTwo` | `SSMG`, `CABL` | SSMG Boutique Theme |
+| `shop` | Shop | `AppOne` | `USBL`, `CABL` | Broadline Theme |
 
 Experience-level capabilities mean:
 
 > This experience knows how to support these capabilities.
 
-They do not mean:
+They do not mean every user gets those capabilities.
 
-> Every user in this experience can do every one of these things.
+## Business Unit Config Layer
 
-The final user capability set is resolved later by intersecting user grants with business-unit allowed capabilities and experience supported capabilities.
+The BU layer answers: which experiences can this BU access, and what capability ceiling applies to this BU?
 
-## 3. Business Unit Config Layer
+| BU | Allowed configured experiences |
+|---|---|
+| `SSMG` | `Newport&Buckhead` |
+| `USBL` | `Shop` |
+| `CABL` | `Newport&Buckhead`, `Shop` |
 
-The business-unit layer answers:
+`CABL` is the demo multi-experience BU.
 
-> Which experiences can this business unit access?
+## Login Grant Layer
 
-Current hard-coded BU config:
+The current simulation uses `HardcodedLoginConfig.loginGrants(productId, username)`.
 
-```text
-SSMG
-  allowedExperiences = AppOne
-  allowedCapabilities =
-    orders.view
-    orders.edit
-    lists.view
-    catalog.view
-    pdp.view
-    delivery.view
-    delivery.status
+| Product | Simulated login behavior |
+|---|---|
+| `AppOneStandalone` | Always returns one `USBL` grant. |
+| `AppTwoStandalone` | Always returns one `SSMG` grant. |
+| `SuperApp` + `admin` | Always returns `CABL` to open the switcher. |
+| Other `SuperApp` users | Return one random-but-stable grant for `SSMG`, `USBL`, or `CABL`. |
 
-USBL
-  allowedExperiences = AppTwo
-  allowedCapabilities =
-    orders.view
-    orders.notifications
-    lists.view
-    lists.purchaseHistory
-    catalog.view
-    catalog.recommendations
-    pdp.view
-    delivery.view
-    delivery.progress
-    delivery.map
-    delivery.invoices
-```
+Each grant includes:
 
-The BU participates in two ways:
+- BU
+- user type
+- roles
+- explicit permissions
+- domain capabilities such as delivery mode and allowed delivery operations
 
-1. It filters available experiences.
-2. It constrains the final user capability set.
+## Experience Eligibility
 
-The experience availability rule is an intersection:
+The resolver keeps an experience only if all three statements are true:
 
 ```text
-available experiences =
-  product.supportedExperiences
-    ∩ businessUnit.allowedExperiences
-    ∩ experience.supportedBusinessUnits
+experience is supported by ProductDefinition
+AND experience is listed in BusinessUnitDefinition.allowedExperiences
+AND BU is listed in ExperienceDefinition.supportedBusinessUnits
 ```
 
-For the Super App with `SSMG`:
+Examples:
 
 ```text
-Product supports: AppOne, AppTwo
-Selected BU: SSMG
-BU allows: AppOne
-Experience AppOne supports BU: SSMG
-
-Result: AppOne / Newport&Buckhead
+AppOneStandalone + USBL
+  product supports: Shop
+  USBL allows: Shop
+  Shop supports: USBL
+  result: Shop
 ```
-
-For the Super App with `USBL`:
 
 ```text
-Product supports: AppOne, AppTwo
-Selected BU: USBL
-BU allows: AppTwo
-Experience AppTwo supports BU: USBL
-
-Result: AppTwo / Shop
+AppTwoStandalone + SSMG
+  product supports: Newport&Buckhead
+  SSMG allows: Newport&Buckhead
+  Newport&Buckhead supports: SSMG
+  result: Newport&Buckhead
 ```
-
-For standalone AppOne:
 
 ```text
-Product supports: AppOne
-BU allows: AppOne
-
-Result: AppOne / Newport&Buckhead
+SuperApp + CABL
+  product supports: Newport&Buckhead, Shop
+  CABL allows: Newport&Buckhead, Shop
+  both experiences support CABL
+  result: switcher with Newport&Buckhead and Shop
 ```
 
-The same filtering logic therefore works for both standalone apps and the Super App.
+## Permission Resolution
 
-## 4. Permission Template Layer
+Permission templates answer: what capabilities does a role usually grant?
 
-The permission template layer answers:
-
-> What capabilities does this role usually get?
-
-Current hard-coded templates:
+Current examples:
 
 ```text
 CUSTOMER
@@ -219,827 +144,115 @@ CUSTOMER_ADMIN
   delivery.invoices
 ```
 
-The UI should not check raw role names for rendering decisions.
+The final resolved commerce capability set is:
 
-Prefer this:
-
-```kotlin
-PermissionId.OrdersEdit in context.commerceCapabilities
+```text
+resolved capabilities =
+  (role template capabilities + explicit login permissions)
+  intersect BU allowed capabilities
+  intersect experience supported capabilities
 ```
 
-Instead of this:
+This clipping is important. A role may grant a permission, but the final context only gets it if both the BU and the experience allow it.
+
+The UI should check permissions, not role names:
+
+```kotlin
+context.commerceCapabilities.has(PermissionId.OrdersEdit)
+```
+
+not:
 
 ```kotlin
 RoleId.CustomerAdmin in context.roles
 ```
 
-Roles are coarse. Permission-string capabilities are what feature rendering should use.
+## AppContext
 
-## 5. Login And AppContext Resolution
+Once an experience is eligible and capabilities are resolved, `ProductRuntime` creates an `AppContext`.
 
-Login resolves through `AppCatalog`.
+The context contains:
 
-The main path is:
+- host `appId`
+- `businessUnitId`
+- user id
+- user type
+- roles
+- explicit permissions
+- final resolved `commerceCapabilities`
+- domain capabilities such as delivery behavior
 
-```kotlin
-fun contextFor(appId: AppId, username: String): AppContext
-```
+This `AppContext` is the source of truth for feature rendering and policies.
 
-During login, the catalog resolves:
+## Feature Resolution
 
-1. app definition
-2. username/profile
-3. business unit
-4. roles
-5. explicit permissions
-6. final commerce capabilities
+`FeatureRegistry` defines the feature surface as data:
 
-Conceptually:
-
-```kotlin
-val businessUnitId = businessUnitFor(definition.id)
-val roles = rolesFor(profile.userType, normalizedUsername)
-val explicitPermissions = explicitPermissionsFor(profile.userType, normalizedUsername)
-
-val commerceCapabilities = commerceCapabilitiesFor(
-    appId = definition.id,
-    businessUnitId = businessUnitId,
-    roles = roles,
-    explicitPermissions = explicitPermissions,
-)
-```
-
-Then the catalog returns an enriched `AppContext`:
-
-```kotlin
-AppContext(
-    appId = definition.id,
-    businessUnitId = businessUnitId,
-    userId = "${definition.configKey}-$normalizedUsername",
-    userType = profile.userType,
-    roles = roles,
-    explicitPermissions = explicitPermissions,
-    commerceCapabilities = commerceCapabilities,
-    capabilities = profile.capabilities,
-)
-```
-
-After login, `AppContext` is the authenticated source of truth for shared logic and UI rendering.
-
-The UI does not need to know whether `delivery.map` came from:
-
-- experience config
-- business-unit config
-- role template
-- explicit user permission
-
-It only asks:
-
-```kotlin
-PermissionId.DeliveryMap in context.commerceCapabilities
-```
-
-## 6. Final Commerce Capability Resolution
-
-The final permission set is not a raw union. Role templates and explicit user permissions are grants, while business-unit and experience config are ceilings.
-
-```text
-user grants =
-  role template capabilities
-    ∪ explicit user permissions
-
-effective capabilities =
-  user grants
-    ∩ businessUnit.allowedCapabilities
-    ∩ experience.supportedCapabilities
-```
-
-In code, this is represented as:
-
-```kotlin
-val userGrantedCapabilities = permissionTemplateCatalog.capabilitiesFor(roles)
-    .plus(CommerceCapabilities(explicitPermissions))
-
-userGrantedCapabilities
-    .intersect(businessUnit.allowedCapabilities)
-    .intersect(experience.supportedCapabilities)
-```
-
-### Example: AppOne Customer
-
-Business unit `SSMG` allows:
-
-```text
-orders.view
-orders.edit
-lists.view
-catalog.view
-pdp.view
-delivery.view
-delivery.status
-```
-
-Experience `Newport&Buckhead` supports:
-
-```text
-orders.view
-orders.edit
-lists.view
-catalog.view
-pdp.view
-delivery.view
-delivery.status
-```
-
-Role `CUSTOMER` grants:
-
-```text
-orders.view
-lists.view
-catalog.view
-pdp.view
-delivery.view
-delivery.status
-```
-
-Explicit permissions:
-
-```text
-none
-```
-
-Final resolved set:
-
-```text
-orders.view
-lists.view
-catalog.view
-pdp.view
-delivery.view
-delivery.status
-```
-
-Feature result:
-
-```text
-Orders
-Lists
-Catalog
-Product Details
-Delivery
-```
-
-Enabled tweaks:
-
-```text
-Delivery: delivery.status
-```
-
-### Example: AppTwo Admin/Merchant-Like User
-
-Business unit `USBL` allows:
-
-```text
-orders.view
-orders.notifications
-lists.view
-lists.purchaseHistory
-catalog.view
-catalog.recommendations
-pdp.view
-delivery.view
-delivery.progress
-delivery.map
-delivery.invoices
-```
-
-Experience `Shop` supports:
-
-```text
-orders.view
-orders.notifications
-lists.view
-lists.purchaseHistory
-catalog.view
-catalog.recommendations
-pdp.view
-delivery.view
-delivery.progress
-delivery.map
-delivery.invoices
-```
-
-Role `CUSTOMER_ADMIN` grants:
-
-```text
-orders.view
-orders.edit
-orders.notifications
-lists.view
-lists.edit
-lists.purchaseHistory
-catalog.view
-catalog.recommendations
-pdp.view
-pdp.internalDetails
-delivery.view
-delivery.edit
-delivery.progress
-delivery.status
-delivery.map
-delivery.invoices
-```
-
-Final resolved set includes:
-
-```text
-orders.view
-orders.notifications
-lists.view
-lists.purchaseHistory
-catalog.view
-catalog.recommendations
-pdp.view
-delivery.view
-delivery.progress
-delivery.map
-delivery.invoices
-```
-
-The role grants more than the Shop experience and USBL business unit allow. For example, `orders.edit`, `lists.edit`, `pdp.internalDetails`, `delivery.edit`, and `delivery.status` are clipped out because they are not in both the BU ceiling and the experience ceiling.
-
-The user still sees the same major feature shells, but only the tweaks permitted by all layers are enabled.
-
-## 7. Feature Registry Layer
-
-The feature registry answers:
-
-> Which top-level feature cards should be visible?
-
-Each feature has:
-
-- a stable `FeatureId`
-- a title
-- one required permission
+- feature id
+- display title
+- required permission
 - optional tweak permissions
+- availability predicate
 
-Example:
+A feature is visible only when its availability predicate passes against `AppContext`.
 
-```kotlin
-FeatureDescriptor(
-    id = FeatureId.Orders,
-    title = "Orders",
-    requiredPermission = PermissionId.OrdersView,
-    tweakPermissions = listOf(
-        PermissionId.OrdersEdit,
-        PermissionId.OrdersNotifications,
-    ),
-) { PermissionId.OrdersView in it.commerceCapabilities }
-```
+Optional tweaks are rendered when the matching tweak permission exists in `context.commerceCapabilities`.
 
-The rule is:
+## Action Resolution
 
-```text
-requiredPermission = can enter the feature
-tweakPermissions   = what the feature can do or render differently
-```
+Non-delivery feature detail screens use a structured action table. Each action declares:
 
-Current commerce feature map:
+- label
+- required permission
+- simulated result text
 
-| Feature | Required permission | Tweaks |
-|---|---|---|
-| Orders | `orders.view` | `orders.edit`, `orders.notifications` |
-| Lists | `lists.view` | `lists.edit`, `lists.purchaseHistory` |
-| Catalog | `catalog.view` | `catalog.recommendations` |
-| Product Details | `pdp.view` | `pdp.internalDetails` |
-| Delivery | `delivery.view` | `delivery.edit`, `delivery.progress`, `delivery.status`, `delivery.map`, `delivery.invoices` |
+The UI filters allowed actions from the resolved capability set.
 
-`FeatureRegistry.availableFeatures(context)` filters features by their required permission.
+Delivery actions are policy-driven because order status changes affect the next available actions. `DeliveryPolicyResolver` reads `context.capabilities.delivery` and returns a policy:
 
-Each available feature computes enabled tweaks dynamically:
+- customer
+- driver
+- admin
+- merchant
+- read-only
+- disabled
 
-```kotlin
-fun enabledTweaks(context: AppContext): List<PermissionId> =
-    tweakPermissions.filter(context.commerceCapabilities::has)
-```
+The selected policy calculates actions per order state.
 
-## 8. UI Rendering Layer
+## Theme Resolution
 
-Android and iOS consume already-resolved information.
+Theme is bound to the configured experience:
 
-The UI does not calculate:
+| Experience | UI theme |
+|---|---|
+| `Newport&Buckhead` | Boutique |
+| `Shop` | Broadline |
 
-- business-unit rules
-- role templates
-- product/experience filtering
-- raw auth response mapping
+The UI displays the resolved theme but does not let users switch it independently.
 
-The UI renders:
+## Navigation
 
-- current `AppContext`
-- available features
-- enabled tweaks
-- allowed business actions
+Android and iOS both support:
 
-### Android Compose
+- login to switcher when multiple experiences resolve
+- switcher back to login
+- experience feature list back to switcher or login
+- feature detail back to feature list
+- logout back to login
 
-The Compose feature list displays:
+## Backend Migration
+
+The backend integration should replace the hardcoded grant source:
 
 ```text
-AppId
-Business unit / roles / userId
-Feature card
-  required permission
-  enabled tweaks
+HardcodedLoginConfig.loginGrants(productId, username)
 ```
 
-Feature cards render:
+The real response should return:
 
-```kotlin
-Text("Requires: ${feature.requiredPermission.value}")
+- BU
+- roles
+- explicit permissions
+- domain capabilities
 
-val enabledTweaks = feature.enabledTweaks(context)
-
-if (enabledTweaks.isNotEmpty()) {
-    Text("Enabled tweaks: ${enabledTweaks.joinToString { it.value }}")
-}
-```
-
-If a user has:
-
-```text
-orders.view
-orders.edit
-```
-
-The card shows:
-
-```text
-Orders
-Requires: orders.view
-Enabled tweaks: orders.edit
-```
-
-If a user only has:
-
-```text
-orders.view
-```
-
-The user still sees Orders, but edit and notification tweaks are not enabled.
-
-### iOS SwiftUI
-
-Kotlin maps shared feature descriptors into snapshots, then Swift maps those snapshots into native presentation models:
-
-```swift
-NativeFeature(
-    id: String,
-    title: String,
-    requiredPermission: String,
-    enabledTweaks: [String]
-)
-```
-
-SwiftUI renders the same feature title, required permission, and enabled tweaks. The decision logic remains shared in Kotlin.
-
-## 9. How Features Should Behave Dynamically Based On Tweaks
-
-A feature should treat permissions in two levels.
-
-### Level 1: Feature Entry
-
-The user can open the feature only if they have the required permission.
-
-Example:
-
-```text
-orders.view
-```
-
-Without it, Orders should not be shown.
-
-### Level 2: Inside-Feature Behavior
-
-Once inside, each optional interaction or section checks its own permission.
-
-For Orders:
-
-```text
-orders.view
-  show orders list
-
-orders.edit
-  show edit order button
-
-orders.notifications
-  show notification preferences, notification badges, or subscribe controls
-```
-
-For Lists:
-
-```text
-lists.view
-  show saved lists
-
-lists.edit
-  allow create/edit/delete lists
-
-lists.purchaseHistory
-  show reorder from purchase history
-```
-
-For Catalog:
-
-```text
-catalog.view
-  show catalog
-
-catalog.recommendations
-  show recommended products carousel
-```
-
-For Product Details:
-
-```text
-pdp.view
-  show product details page
-
-pdp.internalDetails
-  show internal SKU, vendor, margin, or operations-only information
-```
-
-For Delivery:
-
-```text
-delivery.view
-  show delivery screen
-
-delivery.edit
-  allow editing delivery details
-
-delivery.progress
-  show progress timeline
-
-delivery.status
-  show status chips
-
-delivery.map
-  show map
-
-delivery.invoices
-  show invoice/documents section
-```
-
-Feature code should follow this shape:
-
-```kotlin
-if (context.hasPermission(PermissionId.DeliveryMap)) {
-    DeliveryMap()
-}
-
-if (context.hasPermission(PermissionId.DeliveryInvoices)) {
-    InvoiceSection()
-}
-
-if (context.hasPermission(PermissionId.DeliveryEdit)) {
-    EditDeliveryButton()
-}
-```
-
-This lets one feature shell reshape itself per user, business unit, role, permission set, and experience.
-
-## 10. Business Actions Versus Feature Tweaks
-
-Feature tweaks decide which UI sections or controls may be shown.
-
-Business actions decide what the user may actually do for a specific domain object and state.
-
-For example, a user may have:
-
-```text
-delivery.edit
-```
-
-But whether they can edit a specific delivery still depends on order state:
-
-```text
-Created order     -> edit address may be allowed
-Out for delivery  -> edit address may be blocked
-Delivered         -> edit address may be blocked
-```
-
-Permissions are necessary, but not always sufficient.
-
-The delivery sample models business behavior through policies:
-
-```text
-DeliveryPolicyResolver
-DeliveryPolicy
-CustomerDeliveryPolicy
-DriverDeliveryPolicy
-AdminDeliveryPolicy
-MerchantDeliveryPolicy
-ReadOnlyDeliveryPolicy
-```
-
-These answer:
-
-```kotlin
-availableActions(order)
-canOpenDeliveryDetails(order)
-```
-
-The full decision chain is:
-
-```text
-Can user see Delivery feature?
-  requires delivery.view
-
-Can user see Edit Delivery UI?
-  requires delivery.edit
-
-Can user edit this specific order right now?
-  requires delivery.edit
-  and delivery policy says action is allowed for this order state
-```
-
-This creates layered enforcement:
-
-```text
-Feature Registry:
-  can enter feature?
-
-Feature UI tweaks:
-  can see or use an optional UI capability?
-
-Business policy:
-  can perform this action for this specific domain object?
-```
-
-## 11. How Allowed Business Actions Reflect In UI
-
-For Delivery, the UI should compute:
-
-```kotlin
-val policy = session.deliveryPolicy()
-val actions = policy.availableActions(order)
-```
-
-Then render only the actions returned by shared business logic.
-
-### Customer Example
-
-```text
-Order state: Created
-User: Customer
-
-Capabilities:
-  delivery.view
-  delivery.status
-
-Policy:
-  CustomerDeliveryPolicy
-
-Allowed actions:
-  Cancel
-  EditAddress
-  Track
-```
-
-UI result:
-
-```text
-Delivery screen visible
-Status section visible
-Map hidden if delivery.map is missing
-Invoice section hidden if delivery.invoices is missing
-
-Actions:
-  Cancel
-  Edit Address
-  Track
-```
-
-### Driver Example
-
-```text
-Order state: Created
-User: Driver
-
-Capabilities:
-  delivery.view
-  delivery.progress
-  delivery.status
-  delivery.map
-
-Policy:
-  DriverDeliveryPolicy
-
-Allowed actions:
-  Accept
-```
-
-UI result:
-
-```text
-Delivery screen visible
-Progress timeline visible
-Status visible
-Map visible
-Invoices hidden
-
-Actions:
-  Accept
-```
-
-### Customer Admin Example
-
-```text
-Order state: Delivered
-User: Customer Admin
-
-Capabilities:
-  delivery.view
-  delivery.edit
-  delivery.progress
-  delivery.status
-  delivery.map
-  delivery.invoices
-
-Policy:
-  AdminDeliveryPolicy
-```
-
-UI result:
-
-```text
-Delivery screen visible
-Progress visible
-Status visible
-Map visible
-Invoices visible
-
-Edit controls may be generally available, but the order-state policy may still avoid returning EditAddress for a delivered order.
-```
-
-## 12. Recommended Pattern For Every Feature
-
-Each feature should follow this pattern:
-
-```text
-FeatureDescriptor
-  requiredPermission
-  tweakPermissions
-
-FeatureScreen
-  receives AppContext
-  checks tweak permissions for optional sections
-
-FeaturePolicy / UseCase
-  checks domain and business state
-  returns allowed actions/results
-
-UI
-  renders returned sections and actions
-```
-
-### Orders
-
-```text
-Orders feature visible:
-  orders.view
-
-Inside Orders:
-  orders.edit -> show edit buttons
-  orders.notifications -> show notification controls
-
-Business action:
-  edit order allowed only if order status allows edit
-```
-
-### Lists
-
-```text
-Lists feature visible:
-  lists.view
-
-Inside Lists:
-  lists.edit -> create/edit/delete
-  lists.purchaseHistory -> purchase history shortcuts
-
-Business action:
-  reorder allowed only if list has purchasable items, account is active, etc.
-```
-
-### Catalog
-
-```text
-Catalog feature visible:
-  catalog.view
-
-Inside Catalog:
-  catalog.recommendations -> recommendations rail
-
-Business action:
-  add to cart allowed only if item is purchasable for site/customer/BU
-```
-
-### Product Details
-
-```text
-Product Details feature visible:
-  pdp.view
-
-Inside Product Details:
-  pdp.internalDetails -> internal details panel
-
-Business action:
-  request substitution, add-to-list, or add-to-cart depends on item/customer/site rules
-```
-
-### Delivery
-
-```text
-Delivery feature visible:
-  delivery.view
-
-Inside Delivery:
-  delivery.progress
-  delivery.status
-  delivery.map
-  delivery.invoices
-  delivery.edit
-
-Business action:
-  actions returned by DeliveryPolicy for current order state
-```
-
-## 13. Why This Works For Super App And Standalone Apps
-
-Standalone and Super App use the same downstream flow after an experience is selected.
-
-```text
-Standalone:
-  ProductId
-    -> default AppId
-    -> login
-    -> AppContext
-    -> features
-    -> UI
-
-Super App:
-  ProductId
-    -> BU filter
-    -> selected AppId
-    -> login
-    -> AppContext
-    -> features
-    -> UI
-```
-
-Once an `AppId` is selected, both paths are identical.
-
-That means:
-
-- no duplicate standalone logic
-- no special Super App-only feature code
-- one shared `FeatureRegistry`
-- one shared config resolution path
-- one shared iOS snapshot path
-- one shared Android Compose rendering path
-
-The Super App adds only the gateway step.
-
-Everything else is the normal app runtime.
-
-## 14. How This Should Evolve Later
-
-Right now the config is hardcoded:
-
-```kotlin
-defaultExperienceDefinitions()
-defaultBusinessUnitDefinitions()
-defaultPermissionTemplates()
-```
-
-Later, these can move to remote config or backend payloads:
-
-```text
-Experience_Config from backend
-Business_Unit_Config from backend
-Permission_Template from backend
-User roles/permissions from auth response
-```
-
-The rest of the app should stay mostly the same:
-
-```text
-Resolve config
-  -> produce AppContext
-  -> FeatureRegistry reads commerceCapabilities
-  -> UI renders features and tweaks
-  -> domain policies return allowed business actions
-```
-
-The input source changes, but the app behavior model remains stable.
+The product/BU/experience eligibility logic and capability intersection can stay in shared code.

@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -37,16 +39,17 @@ import com.aeshma.multiapp.application.AppSession
 import com.aeshma.multiapp.application.AppRuntime
 import com.aeshma.multiapp.application.FeatureDescriptor
 import com.aeshma.multiapp.application.ProductRuntime
+import com.aeshma.multiapp.application.ResolvedExperienceOption
 import com.aeshma.multiapp.application.createAppRuntime
 import com.aeshma.multiapp.application.createProductRuntime
 import com.aeshma.multiapp.core.model.AppContext
 import com.aeshma.multiapp.core.model.AppId
-import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.PermissionId
 import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.feature.delivery.DeliveryAction
 import com.aeshma.multiapp.feature.delivery.DeliveryOrder
+import com.aeshma.multiapp.feature.delivery.DeliveryStatus
 import kotlinx.coroutines.launch
 
 private sealed interface Screen {
@@ -55,12 +58,29 @@ private sealed interface Screen {
     data class Feature(val id: FeatureId) : Screen
 }
 
+private sealed interface ProductScreen {
+    data object Login : ProductScreen
+    data object ExperienceSwitcher : ProductScreen
+    data object Experience : ProductScreen
+}
+
+private enum class DemoTheme(
+    val label: String,
+    val primary: Color,
+    val secondary: Color,
+    val background: Color,
+) {
+    Boutique("Boutique", Color(0xFF72511E), Color(0xFF006B5A), Color(0xFFFFFBF2)),
+    Broadline("Broadline", Color(0xFF145DA0), Color(0xFF7D4E00), Color(0xFFF7FAFF)),
+    Operations("Operations", Color(0xFF386A20), Color(0xFF8C1D18), Color(0xFFF8FBF4)),
+}
+
 @Composable
 @Preview
 @OptIn(ExperimentalLayoutApi::class)
 fun App(appId: AppId = AppId.AppOne) {
     val runtime = remember(appId) { createAppRuntime(appId) }
-    AppThemeContainer {
+    AppThemeContainer(theme = DemoTheme.Boutique) {
         ExperienceApp(
             runtime = runtime,
             experienceTitle = runtime.appDefinition.displayName,
@@ -74,49 +94,105 @@ fun App(appId: AppId = AppId.AppOne) {
 @OptIn(ExperimentalLayoutApi::class)
 fun ProductApp(productId: ProductId = ProductId.AppOneStandalone) {
     val productRuntime = remember(productId) { createProductRuntime(productId) }
-    var selectedExperience by remember(productRuntime) {
-        mutableStateOf(productRuntime.defaultExperience)
-    }
-    var selectedBusinessUnit by remember(productRuntime) {
-        mutableStateOf(productRuntime.businessUnits.first().id)
+    var selectedUser by remember(productRuntime) { mutableStateOf(productRuntime.defaultUsername) }
+    var productScreen by remember(productRuntime) { mutableStateOf<ProductScreen>(ProductScreen.Login) }
+    var resolvedOptions by remember(productRuntime) { mutableStateOf<List<ResolvedExperienceOption>>(emptyList()) }
+    var selectedOption by remember(productRuntime) { mutableStateOf<ResolvedExperienceOption?>(null) }
+    var selectedTheme by remember(productRuntime) { mutableStateOf(DemoTheme.Operations) }
+
+    fun launch(option: ResolvedExperienceOption) {
+        val runtime = productRuntime.appRuntimeFor(option.experience.id)
+        runtime.session.start(option.context, selectedUser)
+        selectedOption = option
+        selectedTheme = option.defaultTheme()
+        productScreen = ProductScreen.Experience
     }
 
-    AppThemeContainer {
-        val experience = selectedExperience
-        if (experience == null) {
-            ExperiencePickerScreen(
-                productRuntime = productRuntime,
-                selectedBusinessUnit = selectedBusinessUnit,
-                onBusinessUnitSelected = { selectedBusinessUnit = it },
-                onExperienceSelected = { selectedExperience = it },
-            )
-        } else {
-            val runtime = remember(productRuntime, experience) {
-                productRuntime.appRuntimeFor(experience)
-            }
-            val experienceDefinition = remember(productRuntime, experience) {
-                productRuntime.experienceDefinition(experience)
-            }
-            ExperienceApp(
-                runtime = runtime,
-                experienceTitle = experienceDefinition.displayName,
-                experienceSubtitle = "${experienceDefinition.theme} / Sites: ${experienceDefinition.allowedSites.joinToString()}",
-                onExitExperience = if (productRuntime.productDefinition.showsExperiencePicker) {
-                    {
-                        runtime.session.logout()
-                        selectedExperience = null
+    AppThemeContainer(theme = selectedTheme) {
+        when (productScreen) {
+            ProductScreen.Login -> LoginScreen(
+                appName = productRuntime.productDefinition.displayName,
+                subtitle = "Login resolves hardcoded BU, permissions, roles, experiences, and theme.",
+                users = productRuntime.supportedUsernames,
+                selectedUser = selectedUser,
+                onUserSelected = { selectedUser = it },
+                onLogin = {
+                    resolvedOptions = productRuntime.resolvedExperienceOptions(selectedUser)
+                    if (resolvedOptions.size == 1) {
+                        launch(resolvedOptions.single())
+                    } else {
+                        productScreen = ProductScreen.ExperienceSwitcher
                     }
-                } else {
-                    null
+                },
+                onExitExperience = null,
+            )
+            ProductScreen.ExperienceSwitcher -> ExperiencePickerScreen(
+                productRuntime = productRuntime,
+                options = resolvedOptions,
+                onExperienceSelected = ::launch,
+                onLogout = {
+                    resolvedOptions = emptyList()
+                    selectedOption = null
+                    productScreen = ProductScreen.Login
                 },
             )
+            ProductScreen.Experience -> {
+                val option = requireNotNull(selectedOption)
+                val runtime = remember(productRuntime, option) {
+                    productRuntime.appRuntimeFor(option.experience.id)
+                }
+                ExperienceApp(
+                    runtime = runtime,
+                    experienceTitle = option.experience.displayName,
+                    experienceSubtitle = "${option.grant.label} / ${option.context.businessUnitId.value} / ${option.experience.allowedSites.joinToString()}",
+                    onExitExperience = if (resolvedOptions.size > 1) {
+                        {
+                            runtime.session.logout()
+                            selectedOption = null
+                            productScreen = ProductScreen.ExperienceSwitcher
+                        }
+                    } else {
+                        null
+                    },
+                    initialContext = option.context,
+                    initialUsername = selectedUser,
+                    selectedTheme = selectedTheme,
+                    onBackFromFeatures = {
+                        runtime.session.logout()
+                        selectedOption = null
+                        productScreen = if (resolvedOptions.size > 1) {
+                            ProductScreen.ExperienceSwitcher
+                        } else {
+                            resolvedOptions = emptyList()
+                            ProductScreen.Login
+                        }
+                    },
+                    onLogout = {
+                        runtime.session.logout()
+                        resolvedOptions = emptyList()
+                        selectedOption = null
+                        productScreen = ProductScreen.Login
+                    },
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun AppThemeContainer(content: @Composable () -> Unit) {
-    MaterialTheme {
+private fun AppThemeContainer(
+    theme: DemoTheme,
+    content: @Composable () -> Unit,
+) {
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = theme.primary,
+            secondary = theme.secondary,
+            background = theme.background,
+            surface = Color.White,
+            surfaceVariant = theme.background,
+        ),
+    ) {
         Surface(
             modifier = Modifier
                 .fillMaxSize()
@@ -137,12 +213,10 @@ private fun AppThemeContainer(content: @Composable () -> Unit) {
 @OptIn(ExperimentalLayoutApi::class)
 private fun ExperiencePickerScreen(
     productRuntime: ProductRuntime,
-    selectedBusinessUnit: BusinessUnitId,
-    onBusinessUnitSelected: (BusinessUnitId) -> Unit,
-    onExperienceSelected: (AppId) -> Unit,
+    options: List<ResolvedExperienceOption>,
+    onExperienceSelected: (ResolvedExperienceOption) -> Unit,
+    onLogout: () -> Unit,
 ) {
-    val experiences = productRuntime.allowedExperiencesFor(selectedBusinessUnit)
-
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(bottom = 24.dp),
@@ -154,38 +228,27 @@ private fun ExperiencePickerScreen(
                 fontWeight = FontWeight.Bold,
             )
             Text(
-                "Choose which app experience to launch. The business unit below simulates the BU returned after login.",
+                "Choose from the experiences resolved from the hardcoded login response.",
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         item {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                productRuntime.businessUnits.forEach { businessUnit ->
-                    FilterChip(
-                        selected = selectedBusinessUnit == businessUnit.id,
-                        onClick = { onBusinessUnitSelected(businessUnit.id) },
-                        label = { Text(businessUnit.id.value) },
-                    )
-                }
-            }
+            OutlinedButton(onClick = onLogout) { Text("Back to login") }
         }
-        if (experiences.isEmpty()) {
+        if (options.isEmpty()) {
             item {
                 Text(
-                    "No experiences are available for ${selectedBusinessUnit.value}.",
+                    "No experiences are available for the returned BU, roles, and permissions.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-        items(experiences, key = { it.appId.externalName }) { experience ->
+        items(options, key = { "${it.grant.id}-${it.experience.id.value}" }) { option ->
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onExperienceSelected(experience.appId) },
+                    .clickable { onExperienceSelected(option) },
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             ) {
                 Column(
@@ -193,18 +256,28 @@ private fun ExperiencePickerScreen(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
-                        experience.displayName,
+                        option.experience.displayName,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        experience.theme,
+                        "${option.grant.label} / ${option.grant.businessUnitId.value}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        "Sites: ${experience.allowedSites.joinToString()}",
-                        style = MaterialTheme.typography.bodyMedium,
+                        "Theme: ${option.defaultTheme().label}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Roles: ${option.grant.roles.joinToString { it.value }}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        "Resolved permissions: ${option.context.commerceCapabilities.permissions.joinToString { it.value }}",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -220,12 +293,23 @@ private fun ExperienceApp(
     experienceTitle: String,
     experienceSubtitle: String,
     onExitExperience: (() -> Unit)?,
+    initialContext: AppContext? = null,
+    initialUsername: String? = null,
+    selectedTheme: DemoTheme = DemoTheme.Boutique,
+    onBackFromFeatures: (() -> Unit)? = null,
+    onLogout: (() -> Unit)? = null,
 ) {
     val session = runtime.session
-    var selectedUser by remember(runtime) { mutableStateOf(runtime.appDefinition.defaultUsername) }
-    var context by remember(runtime) { mutableStateOf<AppContext?>(null) }
-    var features by remember(runtime) { mutableStateOf<List<FeatureDescriptor>>(emptyList()) }
-    var screen by remember(runtime) { mutableStateOf<Screen>(Screen.Login) }
+    var selectedUser by remember(runtime, initialUsername) {
+        mutableStateOf(initialUsername ?: runtime.appDefinition.defaultUsername)
+    }
+    var context by remember(runtime, initialContext) { mutableStateOf(initialContext) }
+    var features by remember(runtime, initialContext) {
+        mutableStateOf(if (initialContext == null) emptyList() else session.availableFeatures())
+    }
+    var screen by remember(runtime, initialContext) {
+        mutableStateOf<Screen>(if (initialContext == null) Screen.Login else Screen.Features)
+    }
     val coroutineScope = rememberCoroutineScope()
 
     when (val currentScreen = screen) {
@@ -247,14 +331,21 @@ private fun ExperienceApp(
         Screen.Features -> FeatureListScreen(
             context = requireNotNull(context),
             features = features,
+            selectedTheme = selectedTheme,
+            onBack = onBackFromFeatures,
             onFeatureTapped = { feature ->
                 session.trackFeatureOpened(feature.id)
                 screen = Screen.Feature(feature.id)
             },
             onLogout = {
-                context = null
-                features = emptyList()
-                screen = Screen.Login
+                if (onLogout != null) {
+                    onLogout()
+                } else {
+                    session.logout()
+                    context = null
+                    features = emptyList()
+                    screen = Screen.Login
+                }
             },
         )
         is Screen.Feature -> FeatureScreen(
@@ -314,6 +405,8 @@ private fun LoginScreen(
 private fun FeatureListScreen(
     context: AppContext,
     features: List<FeatureDescriptor>,
+    selectedTheme: DemoTheme,
+    onBack: (() -> Unit)?,
     onFeatureTapped: (FeatureDescriptor) -> Unit,
     onLogout: () -> Unit,
 ) {
@@ -338,8 +431,20 @@ private fun FeatureListScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                OutlinedButton(onClick = onLogout) { Text("Logout") }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (onBack != null) {
+                        OutlinedButton(onClick = onBack) { Text("Back") }
+                    }
+                    OutlinedButton(onClick = onLogout) { Text("Logout") }
+                }
             }
+        }
+        item {
+            Text(
+                "Theme: ${selectedTheme.label}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         items(features, key = { it.id.value }) { feature ->
             Card(
@@ -385,18 +490,20 @@ private fun FeatureScreen(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         OutlinedButton(onClick = onBack) { Text("Back") }
-        when (featureId) {
-            FeatureId.Orders -> OrdersView(context)
-            FeatureId.Lists -> ListsView(context)
-            FeatureId.Catalog -> CatalogView(context)
-            FeatureId.ProductDetails -> ProductDetailsView(context)
-            FeatureId.Delivery -> DeliveryView(
+        if (featureId == FeatureId.Delivery) {
+            DeliveryView(
                 policyName = session.deliveryPolicy().experienceName,
                 orders = session.deliveryOrders(),
                 actionsForOrder = session.deliveryPolicy()::availableActions,
                 context = context,
             )
-            else -> SimpleFeatureView("Unavailable", "Unknown feature: ${featureId.value}")
+        } else {
+            val definition = simulatedFeatureDefinitions.firstOrNull { it.id == featureId }
+            if (definition == null) {
+                SimpleFeatureView("Unavailable", "Unknown feature: ${featureId.value}")
+            } else {
+                GenericFeatureView(definition = definition, context = context)
+            }
         }
     }
 }
@@ -409,6 +516,116 @@ private fun SimpleFeatureView(title: String, body: String) {
     }
 }
 
+private data class SimulatedFeatureDefinition(
+    val id: FeatureId,
+    val title: String,
+    val permissionRows: List<PermissionRow>,
+    val actions: List<SimulatedFeatureAction>,
+)
+
+private data class PermissionRow(
+    val label: String,
+    val permission: PermissionId,
+)
+
+private data class SimulatedFeatureAction(
+    val label: String,
+    val requiredPermission: PermissionId,
+    val result: String,
+)
+
+private val simulatedFeatureDefinitions = listOf(
+    SimulatedFeatureDefinition(
+        id = FeatureId.Orders,
+        title = "Orders",
+        permissionRows = listOf(
+            PermissionRow("View orders", PermissionId.OrdersView),
+            PermissionRow("Edit orders", PermissionId.OrdersEdit),
+            PermissionRow("Order notifications", PermissionId.OrdersNotifications),
+        ),
+        actions = listOf(
+            SimulatedFeatureAction("Refresh", PermissionId.OrdersView, "Order list refreshed from simulated state."),
+            SimulatedFeatureAction("Edit", PermissionId.OrdersEdit, "Order edit command accepted."),
+            SimulatedFeatureAction("Notify", PermissionId.OrdersNotifications, "Notification queued for selected orders."),
+        ),
+    ),
+    SimulatedFeatureDefinition(
+        id = FeatureId.Lists,
+        title = "Lists",
+        permissionRows = listOf(
+            PermissionRow("View lists", PermissionId.ListsView),
+            PermissionRow("Edit lists", PermissionId.ListsEdit),
+            PermissionRow("Purchase history", PermissionId.ListsPurchaseHistory),
+        ),
+        actions = listOf(
+            SimulatedFeatureAction("Open", PermissionId.ListsView, "List opened."),
+            SimulatedFeatureAction("Rename", PermissionId.ListsEdit, "List rename saved locally."),
+            SimulatedFeatureAction("History", PermissionId.ListsPurchaseHistory, "Purchase history filter applied."),
+        ),
+    ),
+    SimulatedFeatureDefinition(
+        id = FeatureId.Catalog,
+        title = "Catalog",
+        permissionRows = listOf(
+            PermissionRow("View catalog", PermissionId.CatalogView),
+            PermissionRow("Recommendations", PermissionId.CatalogRecommendations),
+        ),
+        actions = listOf(
+            SimulatedFeatureAction("Browse", PermissionId.CatalogView, "Catalog browse state updated."),
+            SimulatedFeatureAction("Recommend", PermissionId.CatalogRecommendations, "Recommendation rail recalculated."),
+        ),
+    ),
+    SimulatedFeatureDefinition(
+        id = FeatureId.ProductDetails,
+        title = "Product Details",
+        permissionRows = listOf(
+            PermissionRow("View PDP", PermissionId.PdpView),
+            PermissionRow("Internal details", PermissionId.PdpInternalDetails),
+        ),
+        actions = listOf(
+            SimulatedFeatureAction("Open PDP", PermissionId.PdpView, "Product details opened."),
+            SimulatedFeatureAction("Internal", PermissionId.PdpInternalDetails, "Internal product panel revealed."),
+        ),
+    ),
+)
+
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+private fun GenericFeatureView(
+    definition: SimulatedFeatureDefinition,
+    context: AppContext,
+) {
+    var lastActionResult by remember(definition.id, context.userId) {
+        mutableStateOf("No action has been triggered yet.")
+    }
+    val allowedActions = definition.actions.filter { context.hasPermission(it.requiredPermission) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(definition.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        definition.permissionRows.forEach { row ->
+            CommercePermissionLine(row.label, context.hasPermission(row.permission))
+        }
+        Text(
+            lastActionResult,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.primary,
+            fontWeight = FontWeight.SemiBold,
+        )
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            allowedActions.forEach { action ->
+                FilterChip(
+                    selected = false,
+                    onClick = { lastActionResult = action.result },
+                    label = { Text(action.label) },
+                )
+            }
+        }
+    }
+}
+
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 private fun DeliveryView(
@@ -417,6 +634,9 @@ private fun DeliveryView(
     actionsForOrder: (DeliveryOrder) -> List<DeliveryAction>,
     context: AppContext,
 ) {
+    var orderStatuses by remember(orders) { mutableStateOf(orders.associate { it.id to it.status }) }
+    var lastActionResult by remember(orders) { mutableStateOf("No action has been triggered yet.") }
+
     LazyColumn(
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(bottom = 24.dp),
@@ -428,67 +648,44 @@ private fun DeliveryView(
             CommercePermissionLine("Status updates", context.hasPermission(PermissionId.DeliveryStatus))
             CommercePermissionLine("Map tracking", context.hasPermission(PermissionId.DeliveryMap))
             CommercePermissionLine("Invoices", context.hasPermission(PermissionId.DeliveryInvoices))
+            Text(
+                lastActionResult,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
         }
         items(orders, key = DeliveryOrder::id) { order ->
+            val displayedOrder = order.copy(status = orderStatuses[order.id] ?: order.status)
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(order.title, style = MaterialTheme.typography.titleMedium)
+                    Text(displayedOrder.title, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "${order.id} / ${order.status.name}",
+                        "${displayedOrder.id} / ${displayedOrder.status.name}",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        actionsForOrder(order).forEach { action ->
-                            FilterChip(selected = false, onClick = {}, label = { Text(action.name) })
+                        actionsForOrder(displayedOrder).forEach { action ->
+                            FilterChip(
+                                selected = false,
+                                onClick = {
+                                    val nextStatus = action.nextStatus(displayedOrder.status)
+                                    orderStatuses = orderStatuses + (displayedOrder.id to nextStatus)
+                                    lastActionResult = "${action.name} applied to ${displayedOrder.id}; status is now ${nextStatus.name}."
+                                },
+                                label = { Text(action.name) },
+                            )
                         }
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun OrdersView(context: AppContext) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Orders", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        CommercePermissionLine("View orders", context.hasPermission(PermissionId.OrdersView))
-        CommercePermissionLine("Edit orders", context.hasPermission(PermissionId.OrdersEdit))
-        CommercePermissionLine("Order notifications", context.hasPermission(PermissionId.OrdersNotifications))
-    }
-}
-
-@Composable
-private fun ListsView(context: AppContext) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Lists", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        CommercePermissionLine("View lists", context.hasPermission(PermissionId.ListsView))
-        CommercePermissionLine("Edit lists", context.hasPermission(PermissionId.ListsEdit))
-        CommercePermissionLine("Purchase history", context.hasPermission(PermissionId.ListsPurchaseHistory))
-    }
-}
-
-@Composable
-private fun CatalogView(context: AppContext) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Catalog", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        CommercePermissionLine("View catalog", context.hasPermission(PermissionId.CatalogView))
-        CommercePermissionLine("Recommendations", context.hasPermission(PermissionId.CatalogRecommendations))
-    }
-}
-
-@Composable
-private fun ProductDetailsView(context: AppContext) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("Product Details", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        CommercePermissionLine("View PDP", context.hasPermission(PermissionId.PdpView))
-        CommercePermissionLine("Internal details", context.hasPermission(PermissionId.PdpInternalDetails))
     }
 }
 
@@ -499,3 +696,19 @@ private fun CommercePermissionLine(label: String, enabled: Boolean) {
 
 private fun AppContext.hasPermission(permission: PermissionId): Boolean =
     commerceCapabilities.has(permission)
+
+private fun DeliveryAction.nextStatus(currentStatus: DeliveryStatus) =
+    when (this) {
+        DeliveryAction.Cancel -> DeliveryStatus.Cancelled
+        DeliveryAction.Accept -> DeliveryStatus.Assigned
+        DeliveryAction.MarkPickedUp -> DeliveryStatus.PickedUp
+        DeliveryAction.MarkDelivered -> DeliveryStatus.Delivered
+        else -> currentStatus
+    }
+
+private fun ResolvedExperienceOption.defaultTheme(): DemoTheme =
+    when (experience.id) {
+        com.aeshma.multiapp.core.model.ExperienceId.NewportBuckhead -> DemoTheme.Boutique
+        com.aeshma.multiapp.core.model.ExperienceId.Shop -> DemoTheme.Broadline
+        else -> DemoTheme.Operations
+    }

@@ -8,6 +8,7 @@ data class BusinessUnitId(val value: String) {
     companion object {
         val SSMG = BusinessUnitId("SSMG")
         val USBL = BusinessUnitId("USBL")
+        val CABL = BusinessUnitId("CABL")
 
         fun fromExternalName(value: String): BusinessUnitId = BusinessUnitId(value.trim().uppercase())
     }

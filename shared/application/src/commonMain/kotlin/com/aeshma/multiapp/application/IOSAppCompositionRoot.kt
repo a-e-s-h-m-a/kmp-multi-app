@@ -6,7 +6,9 @@ import com.aeshma.multiapp.core.model.AppId
 
 class IOSAppCompositionRoot(appIdName: String) {
     private val runtime = createAppRuntime(AppId.fromExternalName(appIdName))
-    private val experienceDefinition = ExperienceCatalog(defaultExperienceDefinitions()).definition(runtime.appId)
+    private val experienceDefinition = ExperienceCatalog(defaultExperienceDefinitions())
+        .definitions()
+        .first { it.hostAppId == runtime.appId }
     private val snapshotMapper = SessionSnapshotMapper()
 
     val appName: String = experienceDefinition.displayName

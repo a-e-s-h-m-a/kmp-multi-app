@@ -3,6 +3,7 @@ package com.aeshma.multiapp.core.config
 import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.CommerceCapabilities
+import com.aeshma.multiapp.core.model.ExperienceId
 import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.core.model.UserCapabilities
 import com.aeshma.multiapp.core.model.UserType
@@ -49,11 +50,11 @@ class AppCatalogTest {
         val productCatalog = ProductCatalog(defaultProductDefinitions())
 
         assertEquals(
-            setOf(AppId.AppOne),
+            setOf(ExperienceId.Shop),
             productCatalog.definition(ProductId.AppOneStandalone).supportedExperiences,
         )
         assertEquals(
-            setOf(AppId.AppOne, AppId.AppTwo),
+            setOf(ExperienceId.NewportBuckhead, ExperienceId.Shop),
             productCatalog.definition(ProductId.fromExternalName(" superapp ")).supportedExperiences,
         )
         assertNull(productCatalog.definition(ProductId.SuperApp).defaultExperience)
@@ -72,26 +73,37 @@ class AppCatalogTest {
     fun hardCodedExperienceCatalogDefinesBoutiqueAndShopExperiences() {
         val experienceCatalog = ExperienceCatalog(defaultExperienceDefinitions())
 
-        assertEquals("Newport&Buckhead", experienceCatalog.definition(AppId.AppOne).displayName)
-        assertEquals("SSMG Boutique Theme", experienceCatalog.definition(AppId.AppOne).theme)
-        assertEquals(setOf(BusinessUnitId.SSMG), experienceCatalog.definition(AppId.AppOne).supportedBusinessUnits)
+        assertEquals("Newport&Buckhead", experienceCatalog.definition(ExperienceId.NewportBuckhead).displayName)
+        assertEquals("SSMG Boutique Theme", experienceCatalog.definition(ExperienceId.NewportBuckhead).theme)
+        assertEquals(
+            setOf(BusinessUnitId.SSMG, BusinessUnitId.CABL),
+            experienceCatalog.definition(ExperienceId.NewportBuckhead).supportedBusinessUnits,
+        )
 
-        assertEquals("Shop", experienceCatalog.definition(AppId.AppTwo).displayName)
-        assertEquals("Broadline Theme", experienceCatalog.definition(AppId.AppTwo).theme)
-        assertEquals(setOf(BusinessUnitId.USBL), experienceCatalog.definition(AppId.AppTwo).supportedBusinessUnits)
+        assertEquals("Shop", experienceCatalog.definition(ExperienceId.Shop).displayName)
+        assertEquals("Broadline Theme", experienceCatalog.definition(ExperienceId.Shop).theme)
+        assertEquals(
+            setOf(BusinessUnitId.USBL, BusinessUnitId.CABL),
+            experienceCatalog.definition(ExperienceId.Shop).supportedBusinessUnits,
+        )
     }
 
     @Test
     fun businessUnitCatalogDefinesAllowedExperienceCombinations() {
         val businessUnitCatalog = BusinessUnitCatalog(defaultBusinessUnitDefinitions())
 
-        assertEquals(setOf(AppId.AppOne), businessUnitCatalog.definition(BusinessUnitId.SSMG).allowedExperiences)
-        assertEquals(setOf(AppId.AppTwo), businessUnitCatalog.definition(BusinessUnitId.USBL).allowedExperiences)
+        assertEquals(setOf(ExperienceId.NewportBuckhead), businessUnitCatalog.definition(BusinessUnitId.SSMG).allowedExperiences)
+        assertEquals(setOf(ExperienceId.Shop), businessUnitCatalog.definition(BusinessUnitId.USBL).allowedExperiences)
+        assertEquals(
+            setOf(ExperienceId.NewportBuckhead, ExperienceId.Shop),
+            businessUnitCatalog.definition(BusinessUnitId.CABL).allowedExperiences,
+        )
     }
 
     @Test
     fun catalogSupportsAThirdAppWithoutCoreChanges() {
         val appThree = AppId("AppThree")
+        val appThreeExperience = ExperienceId("app-three-experience")
         val appThreeBu = BusinessUnitId("APP_THREE_BU")
         val customCatalog = AppCatalog(
             definitions = listOf(
@@ -108,7 +120,8 @@ class AppCatalogTest {
             experienceCatalog = ExperienceCatalog(
                 listOf(
                     ExperienceDefinition(
-                        appId = appThree,
+                        id = appThreeExperience,
+                        hostAppId = appThree,
                         displayName = "App Three Experience",
                         url = null,
                         logo = null,
@@ -123,7 +136,7 @@ class AppCatalogTest {
                 listOf(
                     BusinessUnitDefinition(
                         id = appThreeBu,
-                        allowedExperiences = setOf(appThree),
+                        allowedExperiences = setOf(appThreeExperience),
                         allowedCapabilities = CommerceCapabilities.of("catalog.view"),
                     ),
                 ),

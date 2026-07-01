@@ -25,6 +25,11 @@ class AppSession(
 
     suspend fun login(appId: AppId, username: String): AppContext {
         val context = authRepository.login(appId, username)
+        start(context, username)
+        return context
+    }
+
+    fun start(context: AppContext, username: String) {
         currentContext = context
         analyticsClient.track(
             AnalyticsEvent(
@@ -32,7 +37,6 @@ class AppSession(
                 properties = context.analyticsProperties() + ("username" to username),
             ),
         )
-        return context
     }
 
     fun logout() {

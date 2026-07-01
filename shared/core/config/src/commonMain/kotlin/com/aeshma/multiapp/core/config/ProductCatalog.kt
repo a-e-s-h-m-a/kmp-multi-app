@@ -1,6 +1,6 @@
 package com.aeshma.multiapp.core.config
 
-import com.aeshma.multiapp.core.model.AppId
+import com.aeshma.multiapp.core.model.ExperienceId
 import com.aeshma.multiapp.core.model.ProductId
 
 class ProductCatalog(definitions: List<ProductDefinition>) {
@@ -19,21 +19,21 @@ fun defaultProductDefinitions(): List<ProductDefinition> = listOf(
     ProductDefinition(
         id = ProductId.AppOneStandalone,
         displayName = "AppOne",
-        supportedExperiences = setOf(AppId.AppOne),
-        defaultExperience = AppId.AppOne,
+        supportedExperiences = setOf(ExperienceId.Shop),
+        defaultExperience = ExperienceId.Shop,
         showsExperiencePicker = false,
     ),
     ProductDefinition(
         id = ProductId.AppTwoStandalone,
         displayName = "AppTwo",
-        supportedExperiences = setOf(AppId.AppTwo),
-        defaultExperience = AppId.AppTwo,
+        supportedExperiences = setOf(ExperienceId.NewportBuckhead),
+        defaultExperience = ExperienceId.NewportBuckhead,
         showsExperiencePicker = false,
     ),
     ProductDefinition(
         id = ProductId.SuperApp,
         displayName = "Super App",
-        supportedExperiences = setOf(AppId.AppOne, AppId.AppTwo),
+        supportedExperiences = setOf(ExperienceId.NewportBuckhead, ExperienceId.Shop),
         defaultExperience = null,
         showsExperiencePicker = true,
     ),

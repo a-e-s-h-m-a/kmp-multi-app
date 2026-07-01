@@ -27,6 +27,19 @@ data class ProductId(val externalName: String) {
     }
 }
 
+data class ExperienceId(val value: String) {
+    init {
+        require(value.isNotBlank()) { "Experience id cannot be blank." }
+    }
+
+    companion object {
+        val NewportBuckhead = ExperienceId("newport-buckhead")
+        val Shop = ExperienceId("shop")
+
+        fun fromExternalName(value: String): ExperienceId = ExperienceId(value.trim().lowercase())
+    }
+}
+
 enum class UserType {
     Customer,
     Driver,

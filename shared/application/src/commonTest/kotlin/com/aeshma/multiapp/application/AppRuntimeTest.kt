@@ -5,6 +5,7 @@ import com.aeshma.multiapp.core.config.UnsupportedExperienceException
 import com.aeshma.multiapp.core.config.LocalAuthRepository
 import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.BusinessUnitId
+import com.aeshma.multiapp.core.model.ExperienceId
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.config.AppCatalog
 import com.aeshma.multiapp.core.config.defaultAppDefinitions
@@ -37,9 +38,9 @@ class AppRuntimeTest {
         val runtime = createProductRuntime(ProductId.AppOneStandalone)
 
         assertEquals(ProductId.AppOneStandalone, runtime.productId)
-        assertEquals(AppId.AppOne, runtime.defaultExperience)
-        assertEquals(listOf(AppId.AppOne), runtime.supportedExperiences.map { it.id })
-        assertEquals(AppId.AppOne, runtime.appRuntimeFor(AppId.AppOne).appId)
+        assertEquals(ExperienceId.Shop, runtime.defaultExperience)
+        assertEquals(listOf("Shop"), runtime.supportedExperienceDefinitions.map { it.displayName })
+        assertEquals(AppId.AppOne, runtime.appRuntimeFor(ExperienceId.Shop).appId)
     }
 
     @Test
@@ -48,10 +49,9 @@ class AppRuntimeTest {
 
         assertEquals(ProductId.SuperApp, runtime.productId)
         assertEquals(null, runtime.defaultExperience)
-        assertEquals(listOf(AppId.AppOne, AppId.AppTwo), runtime.supportedExperiences.map { it.id })
         assertEquals(listOf("Newport&Buckhead", "Shop"), runtime.supportedExperienceDefinitions.map { it.displayName })
-        assertEquals("customer", runtime.appRuntimeFor(AppId.AppOne).appDefinition.defaultUsername)
-        assertEquals("admin", runtime.appRuntimeFor(AppId.AppTwo).appDefinition.defaultUsername)
+        assertEquals("admin", runtime.appRuntimeFor(ExperienceId.NewportBuckhead).appDefinition.defaultUsername)
+        assertEquals("customer", runtime.appRuntimeFor(ExperienceId.Shop).appDefinition.defaultUsername)
     }
 
     @Test
@@ -62,9 +62,10 @@ class AppRuntimeTest {
 
         assertEquals(listOf("Newport&Buckhead"), superApp.allowedExperiencesFor(BusinessUnitId.SSMG).map { it.displayName })
         assertEquals(listOf("Shop"), superApp.allowedExperiencesFor(BusinessUnitId.USBL).map { it.displayName })
-        assertEquals(listOf("Newport&Buckhead"), appOne.allowedExperiencesFor(BusinessUnitId.SSMG).map { it.displayName })
-        assertEquals(emptyList(), appOne.allowedExperiencesFor(BusinessUnitId.USBL))
-        assertEquals(listOf("Shop"), appTwo.allowedExperiencesFor(BusinessUnitId.USBL).map { it.displayName })
+        assertEquals(listOf("Newport&Buckhead", "Shop"), superApp.allowedExperiencesFor(BusinessUnitId.CABL).map { it.displayName })
+        assertEquals(emptyList(), appOne.allowedExperiencesFor(BusinessUnitId.SSMG))
+        assertEquals(listOf("Shop"), appOne.allowedExperiencesFor(BusinessUnitId.USBL).map { it.displayName })
+        assertEquals(listOf("Newport&Buckhead"), appTwo.allowedExperiencesFor(BusinessUnitId.SSMG).map { it.displayName })
     }
 
     @Test
@@ -72,7 +73,7 @@ class AppRuntimeTest {
         val runtime = createProductRuntime(ProductId.SuperApp)
 
         val capabilities = runtime.resolvedCommerceCapabilities(
-            appId = AppId.AppTwo,
+            experienceId = ExperienceId.Shop,
             businessUnitId = BusinessUnitId.USBL,
             roles = setOf(RoleId.CustomerAdmin),
         )
@@ -86,11 +87,25 @@ class AppRuntimeTest {
     }
 
     @Test
+    fun productRuntimeResolvesHardcodedLoginGrantsIntoExperienceOptions() {
+        val runtime = createProductRuntime(ProductId.SuperApp)
+
+        val options = runtime.resolvedExperienceOptions("customer")
+
+        assertTrue(options.isNotEmpty())
+        assertTrue(options.size <= 2)
+        options.forEach { option ->
+            assertTrue(option.context.commerceCapabilities.permissions.isNotEmpty())
+            assertEquals(option.grant.roles, option.context.roles)
+        }
+    }
+
+    @Test
     fun productRuntimeRejectsUnsupportedExperiences() {
         val runtime = createProductRuntime(ProductId.AppOneStandalone)
 
         assertFailsWith<UnsupportedExperienceException> {
-            runtime.appRuntimeFor(AppId.AppTwo)
+            runtime.appRuntimeFor(ExperienceId.NewportBuckhead)
         }
     }
 
@@ -99,9 +114,9 @@ class AppRuntimeTest {
         val appOne = IOSAppCompositionRoot("AppOne")
         val appTwo = IOSAppCompositionRoot("AppTwo")
 
-        assertEquals("Newport&Buckhead", appOne.appName)
+        assertEquals("Shop", appOne.appName)
         assertEquals("customer", appOne.defaultUsername)
-        assertEquals("Shop", appTwo.appName)
+        assertEquals("Newport&Buckhead", appTwo.appName)
         assertEquals("admin", appTwo.defaultUsername)
     }
 

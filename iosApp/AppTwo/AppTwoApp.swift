@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct AppTwoApp: App {
-    private let store = MultiAppStoreFactory.make(appIdName: "AppTwo")
+    private let store = MultiAppStoreFactory.makeProduct(productIdName: "AppTwoStandalone")
 
     var body: some Scene {
         WindowGroup {

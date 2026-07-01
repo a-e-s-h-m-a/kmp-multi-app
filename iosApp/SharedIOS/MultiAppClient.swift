@@ -5,6 +5,8 @@ struct MultiAppClient: Sendable {
     let appName: String
     let defaultUsername: String
     let supportedUsernames: [String]
+    var resolveExperienceOptions: @Sendable (_ username: String) async throws -> [NativeResolvedExperienceOption]
+    var launchExperience: @Sendable (_ optionId: String, _ username: String) async throws -> NativeSessionSnapshot
     var login: @Sendable (_ username: String) async throws -> NativeSessionSnapshot
     var logout: @Sendable () async -> Void
 }
@@ -14,6 +16,8 @@ private enum MultiAppClientKey: DependencyKey {
         appName: "Unconfigured",
         defaultUsername: "",
         supportedUsernames: [],
+        resolveExperienceOptions: { _ in throw MultiAppClientError.notConfigured },
+        launchExperience: { _, _ in throw MultiAppClientError.notConfigured },
         login: { _ in throw MultiAppClientError.notConfigured },
         logout: {}
     )
@@ -26,10 +30,16 @@ extension DependencyValues {
     }
 }
 
-private enum MultiAppClientError: LocalizedError {
+enum MultiAppClientError: LocalizedError {
     case notConfigured
+    case noResolvedExperience
 
     var errorDescription: String? {
-        "MultiAppClient must be configured at the iOS composition root."
+        switch self {
+        case .notConfigured:
+            "MultiAppClient must be configured at the iOS composition root."
+        case .noResolvedExperience:
+            "No experience was resolved for this login."
+        }
     }
 }

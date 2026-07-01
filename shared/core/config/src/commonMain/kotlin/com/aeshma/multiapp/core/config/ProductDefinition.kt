@@ -1,13 +1,13 @@
 package com.aeshma.multiapp.core.config
 
-import com.aeshma.multiapp.core.model.AppId
+import com.aeshma.multiapp.core.model.ExperienceId
 import com.aeshma.multiapp.core.model.ProductId
 
 data class ProductDefinition(
     val id: ProductId,
     val displayName: String,
-    val supportedExperiences: Set<AppId>,
-    val defaultExperience: AppId?,
+    val supportedExperiences: Set<ExperienceId>,
+    val defaultExperience: ExperienceId?,
     val showsExperiencePicker: Boolean,
 ) {
     init {

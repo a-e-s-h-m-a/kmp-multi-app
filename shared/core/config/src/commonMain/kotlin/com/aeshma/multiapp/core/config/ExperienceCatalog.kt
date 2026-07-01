@@ -3,19 +3,22 @@ package com.aeshma.multiapp.core.config
 import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.CommerceCapabilities
-import com.aeshma.multiapp.core.model.PermissionId
+import com.aeshma.multiapp.core.model.ExperienceId
 import com.aeshma.multiapp.core.model.RoleId
 
 class ExperienceCatalog(definitions: List<ExperienceDefinition>) {
-    private val definitionsByName = definitions.associateBy { it.appId.externalName.lowercase() }
+    private val definitionsByName = definitions.associateBy { it.id.value.lowercase() }
+    private val definitions: List<ExperienceDefinition> = definitions
 
     init {
         require(definitions.isNotEmpty()) { "At least one experience must be configured." }
         require(definitionsByName.size == definitions.size) { "Experience ids must be unique." }
     }
 
-    fun definition(appId: AppId): ExperienceDefinition =
-        definitionsByName[appId.externalName.lowercase()] ?: throw UnknownExperienceException(appId)
+    fun definition(experienceId: ExperienceId): ExperienceDefinition =
+        definitionsByName[experienceId.value.lowercase()] ?: throw UnknownExperienceException(experienceId)
+
+    fun definitions(): List<ExperienceDefinition> = definitions
 }
 
 class BusinessUnitCatalog(definitions: List<BusinessUnitDefinition>) {
@@ -48,7 +51,8 @@ class PermissionTemplateCatalog(definitions: List<PermissionTemplate>) {
 
 fun defaultExperienceDefinitions(): List<ExperienceDefinition> = listOf(
     ExperienceDefinition(
-        appId = AppId.AppOne,
+        id = ExperienceId.NewportBuckhead,
+        hostAppId = AppId.AppTwo,
         displayName = "Newport&Buckhead",
         url = null,
         logo = null,
@@ -63,14 +67,15 @@ fun defaultExperienceDefinitions(): List<ExperienceDefinition> = listOf(
             "delivery.view",
             "delivery.status",
         ),
-        supportedBusinessUnits = setOf(BusinessUnitId.SSMG),
+        supportedBusinessUnits = setOf(BusinessUnitId.SSMG, BusinessUnitId.CABL),
     ),
     ExperienceDefinition(
-        appId = AppId.AppTwo,
+        id = ExperienceId.Shop,
+        hostAppId = AppId.AppOne,
         displayName = "Shop",
         url = null,
         logo = null,
-        allowedSites = setOf("USBL"),
+        allowedSites = setOf("USBL", "CABL"),
         theme = "Broadline Theme",
         supportedCapabilities = CommerceCapabilities.of(
             "orders.view",
@@ -85,14 +90,14 @@ fun defaultExperienceDefinitions(): List<ExperienceDefinition> = listOf(
             "delivery.map",
             "delivery.invoices",
         ),
-        supportedBusinessUnits = setOf(BusinessUnitId.USBL),
+        supportedBusinessUnits = setOf(BusinessUnitId.USBL, BusinessUnitId.CABL),
     ),
 )
 
 fun defaultBusinessUnitDefinitions(): List<BusinessUnitDefinition> = listOf(
     BusinessUnitDefinition(
         id = BusinessUnitId.SSMG,
-        allowedExperiences = setOf(AppId.AppOne),
+        allowedExperiences = setOf(ExperienceId.NewportBuckhead),
         allowedCapabilities = CommerceCapabilities.of(
             "orders.view",
             "orders.edit",
@@ -105,7 +110,7 @@ fun defaultBusinessUnitDefinitions(): List<BusinessUnitDefinition> = listOf(
     ),
     BusinessUnitDefinition(
         id = BusinessUnitId.USBL,
-        allowedExperiences = setOf(AppId.AppTwo),
+        allowedExperiences = setOf(ExperienceId.Shop),
         allowedCapabilities = CommerceCapabilities.of(
             "orders.view",
             "orders.notifications",
@@ -116,6 +121,28 @@ fun defaultBusinessUnitDefinitions(): List<BusinessUnitDefinition> = listOf(
             "pdp.view",
             "delivery.view",
             "delivery.progress",
+            "delivery.map",
+            "delivery.invoices",
+        ),
+    ),
+    BusinessUnitDefinition(
+        id = BusinessUnitId.CABL,
+        allowedExperiences = setOf(ExperienceId.NewportBuckhead, ExperienceId.Shop),
+        allowedCapabilities = CommerceCapabilities.of(
+            "orders.view",
+            "orders.edit",
+            "orders.notifications",
+            "lists.view",
+            "lists.edit",
+            "lists.purchaseHistory",
+            "catalog.view",
+            "catalog.recommendations",
+            "pdp.view",
+            "pdp.internalDetails",
+            "delivery.view",
+            "delivery.edit",
+            "delivery.progress",
+            "delivery.status",
             "delivery.map",
             "delivery.invoices",
         ),

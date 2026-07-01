@@ -3,10 +3,12 @@ package com.aeshma.multiapp.core.config
 import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.CommerceCapabilities
+import com.aeshma.multiapp.core.model.ExperienceId
 import com.aeshma.multiapp.core.model.RoleId
 
 data class ExperienceDefinition(
-    val appId: AppId,
+    val id: ExperienceId,
+    val hostAppId: AppId,
     val displayName: String,
     val url: String?,
     val logo: String?,
@@ -24,7 +26,7 @@ data class ExperienceDefinition(
 
 data class BusinessUnitDefinition(
     val id: BusinessUnitId,
-    val allowedExperiences: Set<AppId>,
+    val allowedExperiences: Set<ExperienceId>,
     val allowedCapabilities: CommerceCapabilities,
 ) {
     init {
