@@ -1,0 +1,31 @@
+{
+  "products": [
+    {
+      "flavorName": "appOne",
+      "swiftName": "appOne",
+      "productId": "AppOneStandalone",
+      "displayName": "AppOne",
+      "androidApplicationId": "com.aeshma.appone",
+      "supportedExperiences": ["shop"],
+      "bundledFeatures": ["orders", "catalog", "product-details", "delivery"]
+    },
+    {
+      "flavorName": "appTwo",
+      "swiftName": "appTwo",
+      "productId": "AppTwoStandalone",
+      "displayName": "AppTwo",
+      "androidApplicationId": "com.aeshma.apptwo",
+      "supportedExperiences": ["newport-buckhead"],
+      "bundledFeatures": ["orders", "lists", "delivery"]
+    },
+    {
+      "flavorName": "superApp",
+      "swiftName": "superApp",
+      "productId": "SuperApp",
+      "displayName": "Super App",
+      "androidApplicationId": "com.aeshma.superapp",
+      "supportedExperiences": ["newport-buckhead", "shop"],
+      "bundledFeatures": ["orders", "lists", "catalog", "product-details", "delivery"]
+    }
+  ]
+}

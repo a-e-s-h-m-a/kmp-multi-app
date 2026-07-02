@@ -92,8 +92,14 @@ fun App(appId: AppId = AppId.AppOne) {
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-fun ProductApp(productId: ProductId = ProductId.AppOneStandalone) {
+fun ProductApp(
+    productId: ProductId = ProductId.AppOneStandalone,
+    buildFeatureBundle: Set<FeatureId>? = null,
+) {
     val productRuntime = remember(productId) { createProductRuntime(productId) }
+    val packagedFeatures = remember(productRuntime, buildFeatureBundle) {
+        buildFeatureBundle ?: productRuntime.bundledFeatures
+    }
     var selectedUser by remember(productRuntime) { mutableStateOf(productRuntime.defaultUsername) }
     var productScreen by remember(productRuntime) { mutableStateOf<ProductScreen>(ProductScreen.Login) }
     var resolvedOptions by remember(productRuntime) { mutableStateOf<List<ResolvedExperienceOption>>(emptyList()) }
@@ -112,7 +118,7 @@ fun ProductApp(productId: ProductId = ProductId.AppOneStandalone) {
         when (productScreen) {
             ProductScreen.Login -> LoginScreen(
                 appName = productRuntime.productDefinition.displayName,
-                subtitle = "Login resolves hardcoded BU, permissions, roles, experiences, and theme.",
+                subtitle = "Build bundle: ${packagedFeatures.joinToString { it.value }}",
                 users = productRuntime.supportedUsernames,
                 selectedUser = selectedUser,
                 onUserSelected = { selectedUser = it },

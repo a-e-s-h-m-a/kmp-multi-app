@@ -1,4 +1,15 @@
+import groovy.json.JsonSlurper
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+@Suppress("UNCHECKED_CAST")
+val productBuildConfigs = (
+    JsonSlurper().parse(rootProject.file("config/product-feature-bundles.json")) as Map<String, Any>
+)["products"] as List<Map<String, Any>>
+
+fun quotedBuildConfig(value: String): String = "\"$value\""
+
+fun csvBuildConfig(values: Any?): String =
+    (values as List<*>).joinToString(",") { it.toString() }
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -37,23 +48,23 @@ android {
     }
     flavorDimensions += "app"
     productFlavors {
-        create("appOne") {
-            dimension = "app"
-            applicationId = "com.aeshma.appone"
-            resValue("string", "app_name", "AppOne")
-            buildConfigField("String", "PRODUCT_ID", "\"AppOneStandalone\"")
-        }
-        create("appTwo") {
-            dimension = "app"
-            applicationId = "com.aeshma.apptwo"
-            resValue("string", "app_name", "AppTwo")
-            buildConfigField("String", "PRODUCT_ID", "\"AppTwoStandalone\"")
-        }
-        create("superApp") {
-            dimension = "app"
-            applicationId = "com.aeshma.superapp"
-            resValue("string", "app_name", "Super App")
-            buildConfigField("String", "PRODUCT_ID", "\"SuperApp\"")
+        productBuildConfigs.forEach { product ->
+            create(product.getValue("flavorName").toString()) {
+                dimension = "app"
+                applicationId = product.getValue("androidApplicationId").toString()
+                resValue("string", "app_name", product.getValue("displayName").toString())
+                buildConfigField("String", "PRODUCT_ID", quotedBuildConfig(product.getValue("productId").toString()))
+                buildConfigField(
+                    "String",
+                    "SUPPORTED_EXPERIENCES",
+                    quotedBuildConfig(csvBuildConfig(product["supportedExperiences"])),
+                )
+                buildConfigField(
+                    "String",
+                    "BUNDLED_FEATURES",
+                    quotedBuildConfig(csvBuildConfig(product["bundledFeatures"])),
+                )
+            }
         }
     }
     packaging {

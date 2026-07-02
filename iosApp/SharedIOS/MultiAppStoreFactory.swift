@@ -17,12 +17,16 @@ enum MultiAppStoreFactory {
         }
     }
 
-    static func makeProduct(productIdName: String) -> StoreOf<MultiAppFeature> {
+    static func makeProduct(
+        productIdName: String,
+        buildFeatureBundle: [String] = []
+    ) -> StoreOf<MultiAppFeature> {
         let client = MultiAppClient.liveProduct(productIdName: productIdName)
 
         return Store(
             initialState: MultiAppFeature.State(
                 appName: client.appName,
+                buildFeatureBundle: buildFeatureBundle,
                 supportedUsernames: client.supportedUsernames,
                 selectedUsername: client.defaultUsername
             )

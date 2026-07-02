@@ -210,6 +210,24 @@ That means a user can have `catalog.view`, but Catalog still stays hidden when t
 
 ## Product Feature Bundling Simulation
 
+Product build metadata is centralized in:
+
+```text
+config/product-feature-bundles.json
+```
+
+Android flavors read this config in `androidApp/build.gradle.kts`. iOS constants are generated from the same config into:
+
+```text
+iosApp/SharedIOS/ProductFeatureBundles.generated.swift
+```
+
+Regenerate the Swift constants with:
+
+```bash
+./gradlew generateIOSProductFeatureBundles
+```
+
 `ProductRuntime.bundledFeatures` calculates the union of coarse features for every configured experience a product can launch.
 
 | Product | Feature union |
@@ -223,6 +241,8 @@ This is the shared-code simulation of product-specific bundling:
 - Android product flavors could include only feature modules from this union.
 - iOS targets or KMP framework variants could link only feature packages from this union.
 - Runtime still filters by the selected experience and the resolved permission set.
+
+The login screens display the build feature union from platform build metadata so the simulated package contents are visible while testing.
 
 ## Action Resolution
 

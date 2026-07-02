@@ -128,6 +128,18 @@ Delivery is stateful because order status changes affect available actions. Deli
 
 ## Build-Time Feature Union Simulation
 
+Build product metadata is centralized in:
+
+```text
+config/product-feature-bundles.json
+```
+
+Android flavors are generated from this config in `androidApp/build.gradle.kts`. The same config generates `iosApp/SharedIOS/ProductFeatureBundles.generated.swift` through:
+
+```bash
+./gradlew generateIOSProductFeatureBundles
+```
+
 Each `ExperienceDefinition` declares coarse `supportedFeatures`, such as Orders or Delivery. This is different from fine-grained permissions such as `orders.view`.
 
 `ProductRuntime.bundledFeatures` returns the union of all coarse features for the experiences a product can launch:
@@ -139,6 +151,8 @@ Each `ExperienceDefinition` declares coarse `supportedFeatures`, such as Orders 
 | `SuperApp` | Orders, Lists, Catalog, Product Details, Delivery |
 
 This models what product-specific Android/iOS builds would physically include. Runtime filtering still happens from `AppContext.supportedFeatures` plus resolved permissions.
+
+The app surfaces this build metadata on the login screen as `Build bundle: ...` so the packaged feature union can be compared against the selected experience’s runtime feature list.
 
 ## Android Entry
 
@@ -206,6 +220,8 @@ xcodebuild \
 | Area | Files |
 |---|---|
 | Product definitions | `shared/core/config/.../ProductCatalog.kt`, `ProductDefinition.kt` |
+| Build feature bundle config | `config/product-feature-bundles.json` |
+| iOS generated bundle constants | `iosApp/SharedIOS/ProductFeatureBundles.generated.swift` |
 | Experience and BU config | `shared/core/config/.../ExperienceCatalog.kt`, `ExperienceDefinition.kt` |
 | Hardcoded login grants | `shared/core/config/.../HardcodedLoginConfig.kt` |
 | Product resolver | `shared/application/.../ProductRuntime.kt` |

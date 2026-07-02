@@ -5,6 +5,7 @@ struct MultiAppFeature {
     @ObservableState
     struct State: Equatable {
         var appName: String
+        var buildFeatureBundle: [String] = []
         var supportedUsernames: [String]
         var selectedUsername: String
         var loggedInUserSummary: String?

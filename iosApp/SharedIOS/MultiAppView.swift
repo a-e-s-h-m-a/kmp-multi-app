@@ -27,6 +27,12 @@ private struct LoginView: View {
     var body: some View {
         List {
             Section(store.appName) {
+                if !store.buildFeatureBundle.isEmpty {
+                    Text("Build bundle: \(store.buildFeatureBundle.joined(separator: ", "))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Picker(
                     "Username",
                     selection: Binding(
