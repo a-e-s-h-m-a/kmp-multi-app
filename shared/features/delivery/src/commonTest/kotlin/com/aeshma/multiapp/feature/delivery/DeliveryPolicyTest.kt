@@ -6,6 +6,7 @@ import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.CommerceCapabilities
 import com.aeshma.multiapp.core.model.DeliveryCapability
 import com.aeshma.multiapp.core.model.DeliveryMode
+import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.RoleId
 import com.aeshma.multiapp.core.model.UserCapabilities
 import com.aeshma.multiapp.core.model.UserType
@@ -55,6 +56,7 @@ class DeliveryPolicyTest {
         userType = UserType.Customer,
         roles = setOf(RoleId.Customer),
         explicitPermissions = emptySet(),
+        supportedFeatures = setOf(FeatureId.Delivery),
         commerceCapabilities = CommerceCapabilities.none(),
         capabilities = UserCapabilities(delivery = delivery),
     )

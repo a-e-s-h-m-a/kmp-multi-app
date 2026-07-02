@@ -4,6 +4,7 @@ import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.CommerceCapabilities
 import com.aeshma.multiapp.core.model.ExperienceId
+import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.core.model.UserCapabilities
 import com.aeshma.multiapp.core.model.UserType
@@ -127,6 +128,7 @@ class AppCatalogTest {
                         logo = null,
                         allowedSites = setOf("APP3"),
                         theme = "App Three Theme",
+                        supportedFeatures = setOf(FeatureId.Orders),
                         supportedCapabilities = CommerceCapabilities.of("orders.view"),
                         supportedBusinessUnits = setOf(appThreeBu),
                     ),

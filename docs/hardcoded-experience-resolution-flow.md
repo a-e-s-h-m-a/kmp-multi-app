@@ -20,10 +20,10 @@ Single-app products still use the same resolver, but because they support only o
 
 ## Current Experience Config
 
-| Experience id | Display name | Host app shell | Supported BUs | Sites | Theme |
-|---|---|---|---|---|---|
-| `newport-buckhead` | Newport&Buckhead | `AppTwo` | `SSMG`, `CABL` | `BHNP` | SSMG Boutique Theme |
-| `shop` | Shop | `AppOne` | `USBL`, `CABL` | `USBL`, `CABL` | Broadline Theme |
+| Experience id | Display name | Host app shell | Supported BUs | Supported features | Sites | Theme |
+|---|---|---|---|---|---|---|
+| `newport-buckhead` | Newport&Buckhead | `AppTwo` | `SSMG`, `CABL` | Orders, Lists, Delivery | `BHNP` | SSMG Boutique Theme |
+| `shop` | Shop | `AppOne` | `USBL`, `CABL` | Orders, Catalog, Product Details, Delivery | `USBL`, `CABL` | Broadline Theme |
 
 The host app shell is only the app runtime used to launch the shared session. It is not the experience identity.
 
@@ -84,6 +84,7 @@ resolved capabilities =
    - original login grant
    - configured experience definition
    - fully resolved `AppContext`
+   - selected experience coarse feature set
 
 7. The UI receives the resolved options:
    - zero options: show no eligible experience message
@@ -115,6 +116,18 @@ Each feature declares:
 - availability predicate
 
 After the final `AppContext` is created, `session.availableFeatures()` filters features from the resolved permissions.
+
+Feature visibility first checks the selected experience’s coarse supported feature set, then checks permissions. This lets an experience support `Orders` as a feature while permissions such as `orders.view` and `orders.edit` decide the visible pieces/actions inside that feature.
+
+`ProductRuntime.bundledFeatures` calculates the union of supported features for every experience a product can launch:
+
+| Product | Feature union |
+|---|---|
+| `AppOneStandalone` | Orders, Catalog, Product Details, Delivery |
+| `AppTwoStandalone` | Orders, Lists, Delivery |
+| `SuperApp` | Orders, Lists, Catalog, Product Details, Delivery |
+
+That union is the set a real product-specific build could physically include.
 
 Non-delivery feature detail UI is also structured from a small feature/action definition table. Each action declares:
 

@@ -54,6 +54,7 @@ data class AppContext(
     val userType: UserType,
     val roles: Set<RoleId>,
     val explicitPermissions: Set<PermissionId>,
+    val supportedFeatures: Set<FeatureId>,
     val commerceCapabilities: CommerceCapabilities,
     val capabilities: UserCapabilities,
 )

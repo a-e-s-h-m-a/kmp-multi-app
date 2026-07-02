@@ -22,10 +22,10 @@ Single-app products still use the shared product resolver, but each supports onl
 
 ## Current Experience Config
 
-| Experience ID | Display name | Host app shell | Supported BUs | Sites | Theme |
-|---|---|---|---|---|---|
-| `newport-buckhead` | Newport&Buckhead | `AppTwo` | `SSMG`, `CABL` | `BHNP` | SSMG Boutique Theme |
-| `shop` | Shop | `AppOne` | `USBL`, `CABL` | `USBL`, `CABL` | Broadline Theme |
+| Experience ID | Display name | Host app shell | Supported BUs | Supported features | Sites | Theme |
+|---|---|---|---|---|---|---|
+| `newport-buckhead` | Newport&Buckhead | `AppTwo` | `SSMG`, `CABL` | Orders, Lists, Delivery | `BHNP` | SSMG Boutique Theme |
+| `shop` | Shop | `AppOne` | `USBL`, `CABL` | Orders, Catalog, Product Details, Delivery | `USBL`, `CABL` | Broadline Theme |
 
 The host app shell is the app runtime used to launch the shared session. It is not the experience identity.
 
@@ -125,6 +125,20 @@ Each feature defines:
 Non-delivery feature detail screens are generated from a structured feature/action table. Each action declares a label, required permission, and simulated result. The UI filters actions from the resolved `AppContext.commerceCapabilities`.
 
 Delivery is stateful because order status changes affect available actions. Delivery actions come from `DeliveryPolicyResolver`, which reads the resolved domain `DeliveryCapability`.
+
+## Build-Time Feature Union Simulation
+
+Each `ExperienceDefinition` declares coarse `supportedFeatures`, such as Orders or Delivery. This is different from fine-grained permissions such as `orders.view`.
+
+`ProductRuntime.bundledFeatures` returns the union of all coarse features for the experiences a product can launch:
+
+| Product | Bundled feature union |
+|---|---|
+| `AppOneStandalone` | Orders, Catalog, Product Details, Delivery |
+| `AppTwoStandalone` | Orders, Lists, Delivery |
+| `SuperApp` | Orders, Lists, Catalog, Product Details, Delivery |
+
+This models what product-specific Android/iOS builds would physically include. Runtime filtering still happens from `AppContext.supportedFeatures` plus resolved permissions.
 
 ## Android Entry
 

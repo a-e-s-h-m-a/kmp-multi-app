@@ -4,6 +4,7 @@ import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.CommerceCapabilities
 import com.aeshma.multiapp.core.model.ExperienceId
+import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.RoleId
 
 class ExperienceCatalog(definitions: List<ExperienceDefinition>) {
@@ -58,6 +59,11 @@ fun defaultExperienceDefinitions(): List<ExperienceDefinition> = listOf(
         logo = null,
         allowedSites = setOf("BHNP"),
         theme = "SSMG Boutique Theme",
+        supportedFeatures = setOf(
+            FeatureId.Orders,
+            FeatureId.Lists,
+            FeatureId.Delivery,
+        ),
         supportedCapabilities = CommerceCapabilities.of(
             "orders.view",
             "orders.edit",
@@ -77,6 +83,12 @@ fun defaultExperienceDefinitions(): List<ExperienceDefinition> = listOf(
         logo = null,
         allowedSites = setOf("USBL", "CABL"),
         theme = "Broadline Theme",
+        supportedFeatures = setOf(
+            FeatureId.Orders,
+            FeatureId.Catalog,
+            FeatureId.ProductDetails,
+            FeatureId.Delivery,
+        ),
         supportedCapabilities = CommerceCapabilities.of(
             "orders.view",
             "orders.notifications",

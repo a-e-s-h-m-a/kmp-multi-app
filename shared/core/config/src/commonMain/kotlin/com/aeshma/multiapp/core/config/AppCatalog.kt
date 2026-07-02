@@ -29,9 +29,11 @@ class AppCatalog(
         val normalizedUsername = username.normalizedUsername()
         val profile = definition.profileFor(normalizedUsername)
         val businessUnitId = businessUnitFor(definition.id)
+        val experience = experienceFor(definition.id, businessUnitId)
         val roles = rolesFor(profile.userType, normalizedUsername)
         val explicitPermissions = explicitPermissionsFor(profile.userType, normalizedUsername)
         val commerceCapabilities = commerceCapabilitiesFor(
+            experience = experience,
             appId = definition.id,
             businessUnitId = businessUnitId,
             roles = roles,
@@ -45,6 +47,7 @@ class AppCatalog(
             userType = profile.userType,
             roles = roles,
             explicitPermissions = explicitPermissions,
+            supportedFeatures = experience.supportedFeatures,
             commerceCapabilities = commerceCapabilities,
             capabilities = profile.capabilities,
         )
@@ -56,6 +59,11 @@ class AppCatalog(
             ?.supportedBusinessUnits
             ?.first()
             ?: error("No demo business unit mapping configured for '${appId.externalName}'.")
+
+    private fun experienceFor(appId: AppId, businessUnitId: BusinessUnitId): ExperienceDefinition =
+        experienceCatalog.definitions()
+            .firstOrNull { it.hostAppId == appId && businessUnitId in it.supportedBusinessUnits }
+            ?: error("No demo experience mapping configured for '${appId.externalName}' and '${businessUnitId.value}'.")
 
     private fun rolesFor(userType: UserType, username: String): Set<RoleId> =
         when {
@@ -80,14 +88,12 @@ class AppCatalog(
         }
 
     private fun commerceCapabilitiesFor(
+        experience: ExperienceDefinition,
         appId: AppId,
         businessUnitId: BusinessUnitId,
         roles: Set<RoleId>,
         explicitPermissions: Set<PermissionId>,
     ): CommerceCapabilities {
-        val experience = experienceCatalog.definitions()
-            .firstOrNull { it.hostAppId == appId && businessUnitId in it.supportedBusinessUnits }
-            ?: error("No demo experience mapping configured for '${appId.externalName}' and '${businessUnitId.value}'.")
         val businessUnit = businessUnitCatalog.definition(businessUnitId)
         require(experience.id in businessUnit.allowedExperiences && businessUnit.id in experience.supportedBusinessUnits) {
             "Experience '${appId.externalName}' is not allowed for business unit '${businessUnit.id.value}'."

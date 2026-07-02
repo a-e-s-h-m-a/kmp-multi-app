@@ -4,6 +4,7 @@ import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.CommerceCapabilities
 import com.aeshma.multiapp.core.model.ExperienceId
+import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.RoleId
 
 data class ExperienceDefinition(
@@ -14,12 +15,14 @@ data class ExperienceDefinition(
     val logo: String?,
     val allowedSites: Set<String>,
     val theme: String,
+    val supportedFeatures: Set<FeatureId>,
     val supportedCapabilities: CommerceCapabilities,
     val supportedBusinessUnits: Set<BusinessUnitId>,
 ) {
     init {
         require(displayName.isNotBlank()) { "Experience display name cannot be blank." }
         require(theme.isNotBlank()) { "Experience theme cannot be blank." }
+        require(supportedFeatures.isNotEmpty()) { "Experience must support at least one feature." }
         require(supportedBusinessUnits.isNotEmpty()) { "Experience must support at least one business unit." }
     }
 }

@@ -22,6 +22,7 @@ import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.CommerceCapabilities
 import com.aeshma.multiapp.core.model.ExperienceId
+import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.core.model.RoleId
 
@@ -52,6 +53,10 @@ class ProductRuntime internal constructor(
     val businessUnits: List<BusinessUnitDefinition> = businessUnitCatalog.definitions
 
     val defaultExperience: ExperienceId? = productDefinition.defaultExperience
+
+    val bundledFeatures: Set<FeatureId> = supportedExperienceDefinitions
+        .flatMap { it.supportedFeatures }
+        .toSet()
 
     val supportedUsernames: List<String> = supportedExperiences
         .flatMap { it.supportedUsernames }
@@ -120,6 +125,7 @@ class ProductRuntime internal constructor(
                             userType = grant.userType,
                             roles = grant.roles,
                             explicitPermissions = grant.explicitPermissions,
+                            supportedFeatures = experience.supportedFeatures,
                             commerceCapabilities = capabilities,
                             capabilities = grant.capabilities,
                         ),

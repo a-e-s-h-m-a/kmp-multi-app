@@ -69,6 +69,26 @@ class AppRuntimeTest {
     }
 
     @Test
+    fun productRuntimeExposesBuildTimeFeatureUnionForSupportedExperiences() {
+        val appOne = createProductRuntime(ProductId.AppOneStandalone)
+        val appTwo = createProductRuntime(ProductId.AppTwoStandalone)
+        val superApp = createProductRuntime(ProductId.SuperApp)
+
+        assertEquals(
+            setOf(FeatureId.Orders, FeatureId.Catalog, FeatureId.ProductDetails, FeatureId.Delivery),
+            appOne.bundledFeatures,
+        )
+        assertEquals(
+            setOf(FeatureId.Orders, FeatureId.Lists, FeatureId.Delivery),
+            appTwo.bundledFeatures,
+        )
+        assertEquals(
+            setOf(FeatureId.Orders, FeatureId.Lists, FeatureId.Catalog, FeatureId.ProductDetails, FeatureId.Delivery),
+            superApp.bundledFeatures,
+        )
+    }
+
+    @Test
     fun commerceCapabilitiesIntersectUserGrantsWithBusinessUnitAndExperienceCeilings() {
         val runtime = createProductRuntime(ProductId.SuperApp)
 
@@ -130,10 +150,10 @@ class AppRuntimeTest {
         val catalog = AppCatalog(defaultAppDefinitions())
         val registry = FeatureRegistry()
         val cases = listOf(
-            Triple(AppId.AppOne, "customer", listOf("orders", "lists", "catalog", "product-details", "delivery")),
+            Triple(AppId.AppOne, "customer", listOf("orders", "catalog", "product-details", "delivery")),
             Triple(AppId.AppOne, "driver", listOf("delivery")),
-            Triple(AppId.AppTwo, "admin", listOf("orders", "lists", "catalog", "product-details", "delivery")),
-            Triple(AppId.AppTwo, "nod", listOf("orders", "lists", "catalog", "product-details", "delivery")),
+            Triple(AppId.AppTwo, "admin", listOf("orders", "lists", "delivery")),
+            Triple(AppId.AppTwo, "nod", listOf("orders", "lists", "delivery")),
         )
 
         cases.forEach { (appId, username, expectedFeatures) ->

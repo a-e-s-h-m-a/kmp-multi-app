@@ -32,16 +32,18 @@ Single-app products support one configured experience. SuperApp supports both.
 
 The experience layer answers: what configured experiences exist, which BUs can use them, and what capability ceiling does each experience support?
 
-| Experience ID | Display | Host app shell | Supported BUs | Theme |
-|---|---|---|---|---|
-| `newport-buckhead` | Newport&Buckhead | `AppTwo` | `SSMG`, `CABL` | SSMG Boutique Theme |
-| `shop` | Shop | `AppOne` | `USBL`, `CABL` | Broadline Theme |
+| Experience ID | Display | Host app shell | Supported BUs | Supported features | Theme |
+|---|---|---|---|---|---|
+| `newport-buckhead` | Newport&Buckhead | `AppTwo` | `SSMG`, `CABL` | Orders, Lists, Delivery | SSMG Boutique Theme |
+| `shop` | Shop | `AppOne` | `USBL`, `CABL` | Orders, Catalog, Product Details, Delivery | Broadline Theme |
 
 Experience-level capabilities mean:
 
 > This experience knows how to support these capabilities.
 
 They do not mean every user gets those capabilities.
+
+Experience-level supported features are coarser than permissions. For example, `FeatureId.Orders` means the experience supports the Orders feature surface. Permissions such as `orders.view` and `orders.edit` decide what the user can see or do inside that feature.
 
 ## Business Unit Config Layer
 
@@ -197,6 +199,30 @@ This `AppContext` is the source of truth for feature rendering and policies.
 A feature is visible only when its availability predicate passes against `AppContext`.
 
 Optional tweaks are rendered when the matching tweak permission exists in `context.commerceCapabilities`.
+
+The first filter is the resolved coarse feature set:
+
+```kotlin
+features.filter { it.id in context.supportedFeatures && it.isAvailable(context) }
+```
+
+That means a user can have `catalog.view`, but Catalog still stays hidden when the selected experience does not support the Catalog feature.
+
+## Product Feature Bundling Simulation
+
+`ProductRuntime.bundledFeatures` calculates the union of coarse features for every configured experience a product can launch.
+
+| Product | Feature union |
+|---|---|
+| `AppOneStandalone` | Orders, Catalog, Product Details, Delivery |
+| `AppTwoStandalone` | Orders, Lists, Delivery |
+| `SuperApp` | Orders, Lists, Catalog, Product Details, Delivery |
+
+This is the shared-code simulation of product-specific bundling:
+
+- Android product flavors could include only feature modules from this union.
+- iOS targets or KMP framework variants could link only feature packages from this union.
+- Runtime still filters by the selected experience and the resolved permission set.
 
 ## Action Resolution
 

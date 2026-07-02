@@ -64,5 +64,5 @@ class FeatureRegistry {
     )
 
     fun availableFeatures(context: AppContext): List<FeatureDescriptor> =
-        features.filter { it.isAvailable(context) }
+        features.filter { it.id in context.supportedFeatures && it.isAvailable(context) }
 }
