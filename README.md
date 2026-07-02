@@ -249,6 +249,7 @@ xcodebuild \
 
 - [Hardcoded Experience Resolution Flow](docs/hardcoded-experience-resolution-flow.md)
 - [Commerce Permission And Feature Resolution](docs/commerce-permission-feature-resolution.md)
+- [Feature Mechanism And Tab Flow](docs/feature-mechanism-and-tab-flow.md)
 
 ## Verification
 

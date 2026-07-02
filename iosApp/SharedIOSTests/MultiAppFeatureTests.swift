@@ -163,13 +163,31 @@ private extension NativeSessionSnapshot {
                 id: "orders",
                 title: "Orders",
                 requiredPermission: "orders.view",
-                enabledTweaks: ["orders.edit"]
+                enabledTweaks: ["orders.edit"],
+                permissionRows: [
+                    NativeFeaturePermissionRow(label: "View orders", permission: "orders.view", enabled: true),
+                    NativeFeaturePermissionRow(label: "Edit orders", permission: "orders.edit", enabled: true),
+                ],
+                actions: [
+                    NativeFeatureAction(label: "Refresh", requiredPermission: "orders.view", result: "Order list refreshed.")
+                ],
+                uiBlocks: [
+                    NativeFeatureUiBlock(title: "Recent orders", requiredPermission: "orders.view", body: "Shows recent orders.")
+                ]
             ),
             NativeFeature(
                 id: "delivery",
                 title: "Delivery",
                 requiredPermission: "delivery.view",
-                enabledTweaks: ["delivery.status", "delivery.map"]
+                enabledTweaks: ["delivery.status", "delivery.map"],
+                permissionRows: [
+                    NativeFeaturePermissionRow(label: "Status updates", permission: "delivery.status", enabled: true),
+                    NativeFeaturePermissionRow(label: "Map tracking", permission: "delivery.map", enabled: true),
+                ],
+                actions: [],
+                uiBlocks: [
+                    NativeFeatureUiBlock(title: "Map tracking", requiredPermission: "delivery.map", body: "Shows route summary.")
+                ]
             ),
         ],
         deliveryExperienceName: "Customer Delivery",

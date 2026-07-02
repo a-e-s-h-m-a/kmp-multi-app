@@ -5,6 +5,7 @@ import com.aeshma.multiapp.core.model.FeatureActionDefinition
 import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.FeaturePermissionRow
+import com.aeshma.multiapp.core.model.FeatureUiBlock
 import com.aeshma.multiapp.core.model.PermissionId
 import com.aeshma.multiapp.feature.catalog.CatalogFeature
 import com.aeshma.multiapp.feature.delivery.DeliveryFeature
@@ -22,6 +23,7 @@ class FeatureDescriptor(
     val tweakPermissions: List<PermissionId> = definition.tweakPermissions
     val permissionRows: List<FeaturePermissionRow> = definition.permissionRows
     val actions: List<FeatureActionDefinition> = definition.actions
+    val uiBlocks: List<FeatureUiBlock> = definition.uiBlocks
 
     fun isAvailable(context: AppContext): Boolean = availability(context)
 

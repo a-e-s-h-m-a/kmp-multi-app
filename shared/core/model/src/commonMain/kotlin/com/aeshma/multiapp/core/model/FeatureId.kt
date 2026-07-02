@@ -25,6 +25,12 @@ data class FeatureActionDefinition(
     val result: String,
 )
 
+data class FeatureUiBlock(
+    val title: String,
+    val requiredPermission: PermissionId,
+    val body: String,
+)
+
 data class FeatureDefinitionSpec(
     val id: FeatureId,
     val title: String,
@@ -32,4 +38,5 @@ data class FeatureDefinitionSpec(
     val tweakPermissions: List<PermissionId> = emptyList(),
     val permissionRows: List<FeaturePermissionRow> = emptyList(),
     val actions: List<FeatureActionDefinition> = emptyList(),
+    val uiBlocks: List<FeatureUiBlock> = emptyList(),
 )

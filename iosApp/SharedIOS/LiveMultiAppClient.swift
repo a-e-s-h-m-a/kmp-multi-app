@@ -8,7 +8,28 @@ private func nativeSnapshot(_ snapshot: SharedSessionSnapshot) -> NativeSessionS
                 id: $0.id,
                 title: $0.title,
                 requiredPermission: $0.requiredPermission,
-                enabledTweaks: $0.enabledTweaks
+                enabledTweaks: $0.enabledTweaks,
+                permissionRows: $0.permissionRows.map {
+                    NativeFeaturePermissionRow(
+                        label: $0.label,
+                        permission: $0.permission,
+                        enabled: $0.enabled
+                    )
+                },
+                actions: $0.actions.map {
+                    NativeFeatureAction(
+                        label: $0.label,
+                        requiredPermission: $0.requiredPermission,
+                        result: $0.result
+                    )
+                },
+                uiBlocks: $0.uiBlocks.map {
+                    NativeFeatureUiBlock(
+                        title: $0.title,
+                        requiredPermission: $0.requiredPermission,
+                        body: $0.body
+                    )
+                }
             )
         },
         deliveryExperienceName: snapshot.deliveryExperienceName,

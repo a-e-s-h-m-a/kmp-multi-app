@@ -12,7 +12,7 @@ struct MultiAppRootView: View {
             case .experienceSwitcher:
                 ExperienceSwitcherView(store: store)
             case .features:
-                FeatureListView(store: store)
+                FeatureTabShellView(store: store)
             case let .feature(featureId):
                 FeatureDetailView(featureId: featureId, store: store)
             }
@@ -66,61 +66,111 @@ private struct LoginView: View {
     }
 }
 
-private struct FeatureListView: View {
+private struct FeatureTabShellView: View {
+    let store: StoreOf<MultiAppFeature>
+    @State private var selectedTab = 0
+
+    private var tabFeatures: [NativeFeature] {
+        Array(store.availableFeatures.prefix(4))
+    }
+
+    private var overflowFeatures: [NativeFeature] {
+        Array(store.availableFeatures.dropFirst(4))
+    }
+
+    private var hasMoreTab: Bool {
+        !overflowFeatures.isEmpty
+    }
+
+    var body: some View {
+        Group {
+            if store.availableFeatures.isEmpty {
+                ContentUnavailableView("No features", systemImage: "square.grid.2x2", description: Text("The resolved experience has no features for this login."))
+            } else {
+                TabView(selection: $selectedTab) {
+                    ForEach(Array(tabFeatures.enumerated()), id: \.element.id) { index, feature in
+                        FeatureTabContentView(feature: feature, store: store)
+                            .tag(index)
+                            .tabItem {
+                                Label(feature.title, systemImage: feature.tabSystemImage)
+                            }
+                    }
+
+                    if hasMoreTab {
+                        MoreFeaturesView(features: overflowFeatures, store: store)
+                            .tag(tabFeatures.count)
+                            .tabItem {
+                                Label("More", systemImage: "ellipsis.circle")
+                            }
+                    }
+                }
+            }
+        }
+        .navigationTitle(store.appName)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button("Back") {
+                    store.send(.previousTapped)
+                }
+                Button("Logout", role: .destructive) {
+                    store.send(.logoutTapped)
+                }
+            }
+        }
+        .background(store.selectedTheme.backgroundColor)
+    }
+}
+
+private struct FeatureTabContentView: View {
+    let feature: NativeFeature
+    let store: StoreOf<MultiAppFeature>
+
+    var body: some View {
+        if feature.id == "delivery" {
+            DeliveryFeatureContentView(feature: feature, store: store)
+        } else {
+            GenericFeatureContentView(feature: feature, theme: store.selectedTheme)
+        }
+    }
+}
+
+private struct MoreFeaturesView: View {
+    let features: [NativeFeature]
     let store: StoreOf<MultiAppFeature>
 
     var body: some View {
         List {
-            if let selectedExperience = store.selectedExperience {
-                Section("Experience") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(selectedExperience.displayName)
-                            .font(.headline)
-                        Text("\(selectedExperience.grantLabel) / \(selectedExperience.businessUnitId)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text("Roles: \(selectedExperience.roles.joined(separator: ", "))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
-
-            Section(store.loggedInUserSummary ?? "") {
-                Text("Theme: \(store.selectedTheme.rawValue)")
-                    .foregroundStyle(.secondary)
-
-                ForEach(store.availableFeatures) { feature in
+            Section("More features") {
+                ForEach(features) { feature in
                     Button {
                         store.send(.featureTapped(feature.id))
                     } label: {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(feature.title)
-                                .font(.headline)
-                            Text("Requires: \(feature.requiredPermission)")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            if !feature.enabledTweaks.isEmpty {
-                                Text("Tweaks: \(feature.enabledTweaks.joined(separator: ", "))")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+                        FeatureSummaryRow(feature: feature)
                     }
                 }
             }
-
-            Button("Back") {
-                store.send(.previousTapped)
-            }
-
-            Button("Logout", role: .destructive) {
-                store.send(.logoutTapped)
-            }
         }
-        .navigationTitle("Features")
         .scrollContentBackground(.hidden)
         .background(store.selectedTheme.backgroundColor)
+    }
+}
+
+private struct FeatureSummaryRow: View {
+    let feature: NativeFeature
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(feature.title)
+                .font(.headline)
+            Text("Requires: \(feature.requiredPermission)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if !feature.enabledTweaks.isEmpty {
+                Text("Tweaks: \(feature.enabledTweaks.joined(separator: ", "))")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 
@@ -188,17 +238,7 @@ private struct FeatureDetailView: View {
     var body: some View {
         List {
             if let feature {
-                Section("Permissions") {
-                    Text("Required: \(feature.requiredPermission)")
-                    if feature.enabledTweaks.isEmpty {
-                        Text("No optional tweaks enabled")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(feature.enabledTweaks, id: \.self) { tweak in
-                            Text(tweak)
-                        }
-                    }
-                }
+                FeatureSummarySection(feature: feature)
             }
 
             if featureId == "delivery" {
@@ -225,7 +265,11 @@ private struct FeatureDetailView: View {
                     }
                 }
             } else {
-                Text(title)
+                if let feature {
+                    GenericFeatureContentRows(feature: feature, theme: store.selectedTheme)
+                } else {
+                    Text(title)
+                }
             }
         }
         .navigationTitle(title)
@@ -236,6 +280,143 @@ private struct FeatureDetailView: View {
                 store.send(.previousTapped)
             }
         }
+    }
+}
+
+private struct GenericFeatureContentView: View {
+    let feature: NativeFeature
+    let theme: NativeTheme
+
+    var body: some View {
+        List {
+            FeatureSummarySection(feature: feature)
+            GenericFeatureContentRows(feature: feature, theme: theme)
+        }
+        .navigationTitle(feature.title)
+        .scrollContentBackground(.hidden)
+        .background(theme.backgroundColor)
+    }
+}
+
+private struct GenericFeatureContentRows: View {
+    let feature: NativeFeature
+    let theme: NativeTheme
+    @State private var lastActionResult = "No action has been triggered yet."
+
+    var body: some View {
+        Section("Capability panels") {
+            if feature.uiBlocks.isEmpty {
+                Text("Capability-driven panels hidden for this login.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(feature.uiBlocks, id: \.title) { block in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(block.title)
+                            .font(.headline)
+                        Text(block.body)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text(block.requiredPermission)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+
+        Section("Actions") {
+            Text(lastActionResult)
+                .foregroundStyle(theme.primaryColor)
+                .font(.subheadline.weight(.semibold))
+
+            if feature.actions.isEmpty {
+                Text("No actions allowed for this login.")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(feature.actions, id: \.label) { action in
+                    Button(action.label) {
+                        lastActionResult = action.result
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct FeatureSummarySection: View {
+    let feature: NativeFeature
+
+    var body: some View {
+        Section("Permissions") {
+            Text("Required: \(feature.requiredPermission)")
+            if feature.permissionRows.isEmpty {
+                Text("No permission rows defined")
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(feature.permissionRows, id: \.permission) { row in
+                    HStack {
+                        Text(row.label)
+                        Spacer()
+                        Text(row.enabled ? "enabled" : "disabled")
+                            .foregroundStyle(row.enabled ? .green : .secondary)
+                    }
+                }
+            }
+            if !feature.enabledTweaks.isEmpty {
+                Text("Tweaks: \(feature.enabledTweaks.joined(separator: ", "))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+}
+
+private struct DeliveryFeatureContentView: View {
+    let feature: NativeFeature
+    let store: StoreOf<MultiAppFeature>
+
+    var body: some View {
+        List {
+            FeatureSummarySection(feature: feature)
+            if !feature.uiBlocks.isEmpty {
+                Section("Capability panels") {
+                    ForEach(feature.uiBlocks, id: \.title) { block in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(block.title)
+                                .font(.headline)
+                            Text(block.body)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            Section(store.deliveryExperienceName) {
+                Text(store.lastActionResult)
+                    .foregroundStyle(store.selectedTheme.primaryColor)
+                    .font(.subheadline.weight(.semibold))
+
+                ForEach(store.deliveryOrders) { order in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(order.title)
+                            .font(.headline)
+                        Text("\(order.id) / \(order.status)")
+                            .foregroundStyle(.secondary)
+                        HStack {
+                            ForEach(order.actions, id: \.self) { action in
+                                Button(action) {
+                                    store.send(.deliveryActionTapped(orderId: order.id, action: action))
+                                }
+                                .buttonStyle(.bordered)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle(feature.title)
+        .scrollContentBackground(.hidden)
+        .background(store.selectedTheme.backgroundColor)
     }
 }
 
@@ -259,6 +440,25 @@ private extension NativeTheme {
             Color(red: 0.97, green: 0.98, blue: 1.00)
         case .operations:
             Color(red: 0.97, green: 0.98, blue: 0.96)
+        }
+    }
+}
+
+private extension NativeFeature {
+    var tabSystemImage: String {
+        switch id {
+        case "orders":
+            "doc.text"
+        case "lists":
+            "list.bullet.rectangle"
+        case "catalog":
+            "square.grid.2x2"
+        case "product-details":
+            "tag"
+        case "delivery":
+            "truck.box"
+        default:
+            "square"
         }
     }
 }

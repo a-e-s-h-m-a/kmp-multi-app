@@ -7,6 +7,27 @@ data class SharedFeatureSnapshot(
     val title: String,
     val requiredPermission: String,
     val enabledTweaks: List<String>,
+    val permissionRows: List<SharedFeaturePermissionRowSnapshot>,
+    val actions: List<SharedFeatureActionSnapshot>,
+    val uiBlocks: List<SharedFeatureUiBlockSnapshot>,
+)
+
+data class SharedFeaturePermissionRowSnapshot(
+    val label: String,
+    val permission: String,
+    val enabled: Boolean,
+)
+
+data class SharedFeatureActionSnapshot(
+    val label: String,
+    val requiredPermission: String,
+    val result: String,
+)
+
+data class SharedFeatureUiBlockSnapshot(
+    val title: String,
+    val requiredPermission: String,
+    val body: String,
 )
 
 data class SharedDeliveryOrderSnapshot(
@@ -34,6 +55,31 @@ class SessionSnapshotMapper {
                     title = feature.title,
                     requiredPermission = feature.requiredPermission.value,
                     enabledTweaks = feature.enabledTweaks(context).map { it.value },
+                    permissionRows = feature.permissionRows.map { row ->
+                        SharedFeaturePermissionRowSnapshot(
+                            label = row.label,
+                            permission = row.permission.value,
+                            enabled = context.commerceCapabilities.has(row.permission),
+                        )
+                    },
+                    actions = feature.actions
+                        .filter { context.commerceCapabilities.has(it.requiredPermission) }
+                        .map { action ->
+                            SharedFeatureActionSnapshot(
+                                label = action.label,
+                                requiredPermission = action.requiredPermission.value,
+                                result = action.result,
+                            )
+                        },
+                    uiBlocks = feature.uiBlocks
+                        .filter { context.commerceCapabilities.has(it.requiredPermission) }
+                        .map { block ->
+                            SharedFeatureUiBlockSnapshot(
+                                title = block.title,
+                                requiredPermission = block.requiredPermission.value,
+                                body = block.body,
+                            )
+                        },
                 )
             },
             deliveryExperienceName = policy.experienceName,

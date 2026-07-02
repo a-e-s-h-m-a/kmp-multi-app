@@ -20,6 +20,8 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -335,6 +337,7 @@ private fun ExperienceApp(
             onExitExperience = onExitExperience,
         )
         Screen.Features -> FeatureListScreen(
+            session = session,
             context = requireNotNull(context),
             features = features,
             selectedTheme = selectedTheme,
@@ -409,6 +412,7 @@ private fun LoginScreen(
 
 @Composable
 private fun FeatureListScreen(
+    session: AppSession,
     context: AppContext,
     features: List<FeatureDescriptor>,
     selectedTheme: DemoTheme,
@@ -416,72 +420,179 @@ private fun FeatureListScreen(
     onFeatureTapped: (FeatureDescriptor) -> Unit,
     onLogout: () -> Unit,
 ) {
-    LazyColumn(
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        contentPadding = PaddingValues(bottom = 24.dp),
+    var selectedTab by remember(features.map { it.id.value }) { mutableStateOf(0) }
+    val tabFeatures = features.take(4)
+    val overflowFeatures = features.drop(4)
+    val hasMoreTab = overflowFeatures.isNotEmpty()
+    val tabCount = tabFeatures.size + if (hasMoreTab) 1 else 0
+    val selectedTabIndex = if (tabCount == 0) 0 else selectedTab.coerceIn(0, tabCount - 1)
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Column {
-                    Text(
-                        context.appId.externalName,
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Text(
-                        "${context.businessUnitId.value} / ${context.roles.joinToString { it.value }} / ${context.userId}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Column {
+                Text(
+                    context.appId.externalName,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    "${context.businessUnitId.value} / ${context.roles.joinToString { it.value }} / ${context.userId}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (onBack != null) {
+                    OutlinedButton(onClick = onBack) { Text("Back") }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (onBack != null) {
-                        OutlinedButton(onClick = onBack) { Text("Back") }
-                    }
-                    OutlinedButton(onClick = onLogout) { Text("Logout") }
-                }
+                OutlinedButton(onClick = onLogout) { Text("Logout") }
             }
         }
-        item {
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text(
                 "Theme: ${selectedTheme.label}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Text(
+                "Resolved features: ${features.joinToString { it.title }}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            if (features.isEmpty()) {
+                SimpleFeatureView("No features", "The resolved experience has no features for this login.")
+            } else if (hasMoreTab && selectedTabIndex == tabFeatures.size) {
+                MoreFeaturesList(
+                    features = overflowFeatures,
+                    context = context,
+                    modifier = Modifier.fillMaxSize(),
+                    onFeatureTapped = onFeatureTapped,
+                )
+            } else {
+                tabFeatures.getOrNull(selectedTabIndex)?.let { feature ->
+                    FeatureTabContent(
+                        feature = feature,
+                        session = session,
+                        context = context,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+            }
+        }
+        if (features.isNotEmpty()) {
+            NavigationBar {
+                tabFeatures.forEachIndexed { index, feature ->
+                    NavigationBarItem(
+                        selected = selectedTabIndex == index,
+                        onClick = { selectedTab = index },
+                        icon = { Text(feature.navInitial()) },
+                        label = { Text(feature.title) },
+                    )
+                }
+                if (hasMoreTab) {
+                    NavigationBarItem(
+                        selected = selectedTabIndex == tabFeatures.size,
+                        onClick = { selectedTab = tabFeatures.size },
+                        icon = { Text("...") },
+                        label = { Text("More") },
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun FeatureDescriptor.navInitial(): String =
+    title
+        .split(" ")
+        .filter { it.isNotBlank() }
+        .take(2)
+        .joinToString("") { it.first().uppercase() }
+        .ifBlank { id.value.take(1).uppercase() }
+
+@Composable
+private fun FeatureTabContent(
+    feature: FeatureDescriptor,
+    session: AppSession,
+    context: AppContext,
+    modifier: Modifier = Modifier,
+) {
+    if (feature.id == FeatureId.Delivery) {
+        DeliveryView(
+            policyName = session.deliveryPolicy().experienceName,
+            feature = feature,
+            orders = session.deliveryOrders(),
+            actionsForOrder = session.deliveryPolicy()::availableActions,
+            context = context,
+            modifier = modifier,
+        )
+    } else {
+        GenericFeatureView(feature = feature, context = context, modifier = modifier)
+    }
+}
+
+@Composable
+private fun MoreFeaturesList(
+    features: List<FeatureDescriptor>,
+    context: AppContext,
+    modifier: Modifier = Modifier,
+    onFeatureTapped: (FeatureDescriptor) -> Unit,
+) {
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(bottom = 24.dp),
+    ) {
+        item {
+            Text("More features", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
         items(features, key = { it.id.value }) { feature ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { onFeatureTapped(feature) },
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        feature.title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        "Requires: ${feature.requiredPermission.value}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    val enabledTweaks = feature.enabledTweaks(context)
-                    if (enabledTweaks.isNotEmpty()) {
-                        Text(
-                            "Enabled tweaks: ${enabledTweaks.joinToString { it.value }}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
+            FeatureSummaryCard(feature = feature, context = context, onFeatureTapped = onFeatureTapped)
+        }
+    }
+}
+
+@Composable
+private fun FeatureSummaryCard(
+    feature: FeatureDescriptor,
+    context: AppContext,
+    onFeatureTapped: (FeatureDescriptor) -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onFeatureTapped(feature) },
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                feature.title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "Requires: ${feature.requiredPermission.value}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val enabledTweaks = feature.enabledTweaks(context)
+            if (enabledTweaks.isNotEmpty()) {
+                Text(
+                    "Enabled tweaks: ${enabledTweaks.joinToString { it.value }}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -529,34 +640,75 @@ private fun SimpleFeatureView(title: String, body: String) {
 private fun GenericFeatureView(
     feature: FeatureDescriptor,
     context: AppContext,
+    modifier: Modifier = Modifier,
 ) {
     var lastActionResult by remember(feature.id, context.userId) {
         mutableStateOf("No action has been triggered yet.")
     }
     val allowedActions = feature.actions.filter { context.hasPermission(it.requiredPermission) }
+    val visibleBlocks = feature.uiBlocks.filter { context.hasPermission(it.requiredPermission) }
+    val hiddenBlockCount = feature.uiBlocks.size - visibleBlocks.size
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(feature.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        feature.permissionRows.forEach { row ->
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+        contentPadding = PaddingValues(bottom = 24.dp),
+    ) {
+        item {
+            Text(feature.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        }
+        items(feature.permissionRows, key = { it.permission.value }) { row ->
             CommercePermissionLine(row.label, context.hasPermission(row.permission))
         }
-        Text(
-            lastActionResult,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.SemiBold,
-        )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            allowedActions.forEach { action ->
-                FilterChip(
-                    selected = false,
-                    onClick = { lastActionResult = action.result },
-                    label = { Text(action.label) },
+        item {
+            if (hiddenBlockCount > 0) {
+                Text(
+                    "$hiddenBlockCount capability-driven panel(s) hidden for this login.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+        items(visibleBlocks, key = { it.title }) { block ->
+            CapabilityPanel(title = block.title, body = block.body)
+        }
+        item {
+            Text(
+                lastActionResult,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        item {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                allowedActions.forEach { action ->
+                    FilterChip(
+                        selected = false,
+                        onClick = { lastActionResult = action.result },
+                        label = { Text(action.label) },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CapabilityPanel(title: String, body: String) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(body, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
@@ -569,11 +721,15 @@ private fun DeliveryView(
     orders: List<DeliveryOrder>,
     actionsForOrder: (DeliveryOrder) -> List<DeliveryAction>,
     context: AppContext,
+    modifier: Modifier = Modifier,
 ) {
     var orderStatuses by remember(orders) { mutableStateOf(orders.associate { it.id to it.status }) }
     var lastActionResult by remember(orders) { mutableStateOf("No action has been triggered yet.") }
+    val visibleBlocks = feature?.uiBlocks.orEmpty().filter { context.hasPermission(it.requiredPermission) }
+    val hiddenBlockCount = feature?.uiBlocks.orEmpty().size - visibleBlocks.size
 
     LazyColumn(
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(12.dp),
         contentPadding = PaddingValues(bottom = 24.dp),
     ) {
@@ -582,12 +738,22 @@ private fun DeliveryView(
             feature?.permissionRows.orEmpty().forEach { row ->
                 CommercePermissionLine(row.label, context.hasPermission(row.permission))
             }
+            if (hiddenBlockCount > 0) {
+                Text(
+                    "$hiddenBlockCount capability-driven panel(s) hidden for this login.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Text(
                 lastActionResult,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.SemiBold,
             )
+        }
+        items(visibleBlocks, key = { it.title }) { block ->
+            CapabilityPanel(title = block.title, body = block.body)
         }
         items(orders, key = DeliveryOrder::id) { order ->
             val displayedOrder = order.copy(status = orderStatuses[order.id] ?: order.status)

@@ -42,6 +42,27 @@ struct NativeFeature: Identifiable, Equatable, Sendable {
     let title: String
     let requiredPermission: String
     let enabledTweaks: [String]
+    let permissionRows: [NativeFeaturePermissionRow]
+    let actions: [NativeFeatureAction]
+    let uiBlocks: [NativeFeatureUiBlock]
+}
+
+struct NativeFeaturePermissionRow: Equatable, Sendable {
+    let label: String
+    let permission: String
+    let enabled: Bool
+}
+
+struct NativeFeatureAction: Equatable, Sendable {
+    let label: String
+    let requiredPermission: String
+    let result: String
+}
+
+struct NativeFeatureUiBlock: Equatable, Sendable {
+    let title: String
+    let requiredPermission: String
+    let body: String
 }
 
 struct NativeDeliveryOrder: Identifiable, Equatable, Sendable {
