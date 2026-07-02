@@ -13,3 +13,23 @@ data class FeatureId(val value: String) {
         val Delivery = FeatureId("delivery")
     }
 }
+
+data class FeaturePermissionRow(
+    val label: String,
+    val permission: PermissionId,
+)
+
+data class FeatureActionDefinition(
+    val label: String,
+    val requiredPermission: PermissionId,
+    val result: String,
+)
+
+data class FeatureDefinitionSpec(
+    val id: FeatureId,
+    val title: String,
+    val requiredPermission: PermissionId,
+    val tweakPermissions: List<PermissionId> = emptyList(),
+    val permissionRows: List<FeaturePermissionRow> = emptyList(),
+    val actions: List<FeatureActionDefinition> = emptyList(),
+)

@@ -1,16 +1,28 @@
 package com.aeshma.multiapp.application
 
 import com.aeshma.multiapp.core.model.AppContext
+import com.aeshma.multiapp.core.model.FeatureActionDefinition
+import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
+import com.aeshma.multiapp.core.model.FeaturePermissionRow
 import com.aeshma.multiapp.core.model.PermissionId
+import com.aeshma.multiapp.feature.catalog.CatalogFeature
+import com.aeshma.multiapp.feature.delivery.DeliveryFeature
+import com.aeshma.multiapp.feature.lists.ListsFeature
+import com.aeshma.multiapp.feature.orders.OrdersFeature
+import com.aeshma.multiapp.feature.productdetails.ProductDetailsFeature
 
 class FeatureDescriptor(
-    val id: FeatureId,
-    val title: String,
-    val requiredPermission: PermissionId,
-    val tweakPermissions: List<PermissionId> = emptyList(),
+    val definition: FeatureDefinitionSpec,
     private val availability: (AppContext) -> Boolean,
 ) {
+    val id: FeatureId = definition.id
+    val title: String = definition.title
+    val requiredPermission: PermissionId = definition.requiredPermission
+    val tweakPermissions: List<PermissionId> = definition.tweakPermissions
+    val permissionRows: List<FeaturePermissionRow> = definition.permissionRows
+    val actions: List<FeatureActionDefinition> = definition.actions
+
     fun isAvailable(context: AppContext): Boolean = availability(context)
 
     fun enabledTweaks(context: AppContext): List<PermissionId> =
@@ -19,50 +31,16 @@ class FeatureDescriptor(
 
 class FeatureRegistry {
     private val features = listOf(
-        FeatureDescriptor(
-            id = FeatureId.Orders,
-            title = "Orders",
-            requiredPermission = PermissionId.OrdersView,
-            tweakPermissions = listOf(
-                PermissionId.OrdersEdit,
-                PermissionId.OrdersNotifications,
-            ),
-        ) { PermissionId.OrdersView in it.commerceCapabilities },
-        FeatureDescriptor(
-            id = FeatureId.Lists,
-            title = "Lists",
-            requiredPermission = PermissionId.ListsView,
-            tweakPermissions = listOf(
-                PermissionId.ListsEdit,
-                PermissionId.ListsPurchaseHistory,
-            ),
-        ) { PermissionId.ListsView in it.commerceCapabilities },
-        FeatureDescriptor(
-            id = FeatureId.Catalog,
-            title = "Catalog",
-            requiredPermission = PermissionId.CatalogView,
-            tweakPermissions = listOf(PermissionId.CatalogRecommendations),
-        ) { PermissionId.CatalogView in it.commerceCapabilities },
-        FeatureDescriptor(
-            id = FeatureId.ProductDetails,
-            title = "Product Details",
-            requiredPermission = PermissionId.PdpView,
-            tweakPermissions = listOf(PermissionId.PdpInternalDetails),
-        ) { PermissionId.PdpView in it.commerceCapabilities },
-        FeatureDescriptor(
-            id = FeatureId.Delivery,
-            title = "Delivery",
-            requiredPermission = PermissionId.DeliveryView,
-            tweakPermissions = listOf(
-                PermissionId.DeliveryEdit,
-                PermissionId.DeliveryProgress,
-                PermissionId.DeliveryStatus,
-                PermissionId.DeliveryMap,
-                PermissionId.DeliveryInvoices,
-            ),
-        ) { PermissionId.DeliveryView in it.commerceCapabilities },
+        descriptor(OrdersFeature.definition),
+        descriptor(ListsFeature.definition),
+        descriptor(CatalogFeature.definition),
+        descriptor(ProductDetailsFeature.definition),
+        descriptor(DeliveryFeature.definition),
     )
 
     fun availableFeatures(context: AppContext): List<FeatureDescriptor> =
         features.filter { it.id in context.supportedFeatures && it.isAvailable(context) }
+
+    private fun descriptor(definition: FeatureDefinitionSpec): FeatureDescriptor =
+        FeatureDescriptor(definition) { definition.requiredPermission in it.commerceCapabilities }
 }

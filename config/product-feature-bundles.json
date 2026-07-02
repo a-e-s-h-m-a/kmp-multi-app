@@ -1,4 +1,11 @@
 {
+  "featureModules": {
+    "orders": ":shared:features:orders",
+    "lists": ":shared:features:lists",
+    "catalog": ":shared:features:catalog",
+    "product-details": ":shared:features:productdetails",
+    "delivery": ":shared:features:delivery"
+  },
   "products": [
     {
       "flavorName": "appOne",

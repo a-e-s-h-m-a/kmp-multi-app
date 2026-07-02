@@ -142,6 +142,18 @@ Android flavors are generated from this config in `androidApp/build.gradle.kts`.
 
 Each `ExperienceDefinition` declares coarse `supportedFeatures`, such as Orders or Delivery. This is different from fine-grained permissions such as `orders.view`.
 
+Each dummy commerce feature now has its own KMP module and owns a `FeatureDefinitionSpec`:
+
+| Feature | Module |
+|---|---|
+| Orders | `shared/features/orders` |
+| Lists | `shared/features/lists` |
+| Catalog | `shared/features/catalog` |
+| Product Details | `shared/features/productdetails` |
+| Delivery | `shared/features/delivery` |
+
+The application layer imports those module definitions in `FeatureRegistry`. The UI receives `FeatureDescriptor` values from the session and renders permission rows/actions from the feature definitions instead of maintaining a separate UI-side table.
+
 `ProductRuntime.bundledFeatures` returns the union of all coarse features for the experiences a product can launch:
 
 | Product | Bundled feature union |
@@ -227,6 +239,7 @@ xcodebuild \
 | Product resolver | `shared/application/.../ProductRuntime.kt` |
 | Session lifecycle | `shared/application/.../AppSession.kt` |
 | Feature registry | `shared/application/.../FeatureRegistry.kt` |
+| Dummy feature modules | `shared/features/orders`, `shared/features/lists`, `shared/features/catalog`, `shared/features/productdetails` |
 | Delivery policies | `shared/features/delivery/.../DeliveryPolicy.kt` |
 | Android UI | `shared/ui/.../App.kt` |
 | iOS KMP bridge | `shared/application/.../IOSProductCompositionRoot.kt` |

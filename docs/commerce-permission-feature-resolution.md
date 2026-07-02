@@ -244,9 +244,21 @@ This is the shared-code simulation of product-specific bundling:
 
 The login screens display the build feature union from platform build metadata so the simulated package contents are visible while testing.
 
+The coarse feature ids also map to concrete KMP modules in `config/product-feature-bundles.json`:
+
+| Feature id | Module |
+|---|---|
+| `orders` | `:shared:features:orders` |
+| `lists` | `:shared:features:lists` |
+| `catalog` | `:shared:features:catalog` |
+| `product-details` | `:shared:features:productdetails` |
+| `delivery` | `:shared:features:delivery` |
+
+For this simulation the application module still links all dummy feature modules so one local build can exercise every path. Orders, Lists, Catalog, Product Details, and Delivery now own their own `FeatureDefinitionSpec`, while `FeatureRegistry` only registers module definitions and applies the common intersection rule.
+
 ## Action Resolution
 
-Non-delivery feature detail screens use a structured action table. Each action declares:
+Non-delivery feature detail screens use structured action tables from their feature modules. Each action declares:
 
 - label
 - required permission

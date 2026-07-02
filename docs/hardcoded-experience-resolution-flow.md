@@ -129,7 +129,17 @@ Feature visibility first checks the selected experience’s coarse supported fea
 
 That union is the set a real product-specific build could physically include.
 
-Non-delivery feature detail UI is also structured from a small feature/action definition table. Each action declares:
+Each coarse feature id maps to a KMP feature module in `config/product-feature-bundles.json`. In the simulation the app links all dummy feature modules, but the definitions are owned by the feature modules:
+
+| Feature id | Module |
+|---|---|
+| `orders` | `:shared:features:orders` |
+| `lists` | `:shared:features:lists` |
+| `catalog` | `:shared:features:catalog` |
+| `product-details` | `:shared:features:productdetails` |
+| `delivery` | `:shared:features:delivery` |
+
+Non-delivery feature detail UI is structured from each module's `FeatureDefinitionSpec`. Each action declares:
 
 - label
 - required permission

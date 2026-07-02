@@ -497,18 +497,20 @@ private fun FeatureScreen(
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         OutlinedButton(onClick = onBack) { Text("Back") }
         if (featureId == FeatureId.Delivery) {
+            val feature = session.availableFeatures().firstOrNull { it.id == featureId }
             DeliveryView(
                 policyName = session.deliveryPolicy().experienceName,
+                feature = feature,
                 orders = session.deliveryOrders(),
                 actionsForOrder = session.deliveryPolicy()::availableActions,
                 context = context,
             )
         } else {
-            val definition = simulatedFeatureDefinitions.firstOrNull { it.id == featureId }
-            if (definition == null) {
+            val feature = session.availableFeatures().firstOrNull { it.id == featureId }
+            if (feature == null) {
                 SimpleFeatureView("Unavailable", "Unknown feature: ${featureId.value}")
             } else {
-                GenericFeatureView(definition = definition, context = context)
+                GenericFeatureView(feature = feature, context = context)
             }
         }
     }
@@ -522,93 +524,20 @@ private fun SimpleFeatureView(title: String, body: String) {
     }
 }
 
-private data class SimulatedFeatureDefinition(
-    val id: FeatureId,
-    val title: String,
-    val permissionRows: List<PermissionRow>,
-    val actions: List<SimulatedFeatureAction>,
-)
-
-private data class PermissionRow(
-    val label: String,
-    val permission: PermissionId,
-)
-
-private data class SimulatedFeatureAction(
-    val label: String,
-    val requiredPermission: PermissionId,
-    val result: String,
-)
-
-private val simulatedFeatureDefinitions = listOf(
-    SimulatedFeatureDefinition(
-        id = FeatureId.Orders,
-        title = "Orders",
-        permissionRows = listOf(
-            PermissionRow("View orders", PermissionId.OrdersView),
-            PermissionRow("Edit orders", PermissionId.OrdersEdit),
-            PermissionRow("Order notifications", PermissionId.OrdersNotifications),
-        ),
-        actions = listOf(
-            SimulatedFeatureAction("Refresh", PermissionId.OrdersView, "Order list refreshed from simulated state."),
-            SimulatedFeatureAction("Edit", PermissionId.OrdersEdit, "Order edit command accepted."),
-            SimulatedFeatureAction("Notify", PermissionId.OrdersNotifications, "Notification queued for selected orders."),
-        ),
-    ),
-    SimulatedFeatureDefinition(
-        id = FeatureId.Lists,
-        title = "Lists",
-        permissionRows = listOf(
-            PermissionRow("View lists", PermissionId.ListsView),
-            PermissionRow("Edit lists", PermissionId.ListsEdit),
-            PermissionRow("Purchase history", PermissionId.ListsPurchaseHistory),
-        ),
-        actions = listOf(
-            SimulatedFeatureAction("Open", PermissionId.ListsView, "List opened."),
-            SimulatedFeatureAction("Rename", PermissionId.ListsEdit, "List rename saved locally."),
-            SimulatedFeatureAction("History", PermissionId.ListsPurchaseHistory, "Purchase history filter applied."),
-        ),
-    ),
-    SimulatedFeatureDefinition(
-        id = FeatureId.Catalog,
-        title = "Catalog",
-        permissionRows = listOf(
-            PermissionRow("View catalog", PermissionId.CatalogView),
-            PermissionRow("Recommendations", PermissionId.CatalogRecommendations),
-        ),
-        actions = listOf(
-            SimulatedFeatureAction("Browse", PermissionId.CatalogView, "Catalog browse state updated."),
-            SimulatedFeatureAction("Recommend", PermissionId.CatalogRecommendations, "Recommendation rail recalculated."),
-        ),
-    ),
-    SimulatedFeatureDefinition(
-        id = FeatureId.ProductDetails,
-        title = "Product Details",
-        permissionRows = listOf(
-            PermissionRow("View PDP", PermissionId.PdpView),
-            PermissionRow("Internal details", PermissionId.PdpInternalDetails),
-        ),
-        actions = listOf(
-            SimulatedFeatureAction("Open PDP", PermissionId.PdpView, "Product details opened."),
-            SimulatedFeatureAction("Internal", PermissionId.PdpInternalDetails, "Internal product panel revealed."),
-        ),
-    ),
-)
-
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
 private fun GenericFeatureView(
-    definition: SimulatedFeatureDefinition,
+    feature: FeatureDescriptor,
     context: AppContext,
 ) {
-    var lastActionResult by remember(definition.id, context.userId) {
+    var lastActionResult by remember(feature.id, context.userId) {
         mutableStateOf("No action has been triggered yet.")
     }
-    val allowedActions = definition.actions.filter { context.hasPermission(it.requiredPermission) }
+    val allowedActions = feature.actions.filter { context.hasPermission(it.requiredPermission) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(definition.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-        definition.permissionRows.forEach { row ->
+        Text(feature.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        feature.permissionRows.forEach { row ->
             CommercePermissionLine(row.label, context.hasPermission(row.permission))
         }
         Text(
@@ -636,6 +565,7 @@ private fun GenericFeatureView(
 @OptIn(ExperimentalLayoutApi::class)
 private fun DeliveryView(
     policyName: String,
+    feature: FeatureDescriptor?,
     orders: List<DeliveryOrder>,
     actionsForOrder: (DeliveryOrder) -> List<DeliveryAction>,
     context: AppContext,
@@ -649,11 +579,9 @@ private fun DeliveryView(
     ) {
         item {
             Text(policyName, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-            CommercePermissionLine("Edit delivery", context.hasPermission(PermissionId.DeliveryEdit))
-            CommercePermissionLine("Progress timeline", context.hasPermission(PermissionId.DeliveryProgress))
-            CommercePermissionLine("Status updates", context.hasPermission(PermissionId.DeliveryStatus))
-            CommercePermissionLine("Map tracking", context.hasPermission(PermissionId.DeliveryMap))
-            CommercePermissionLine("Invoices", context.hasPermission(PermissionId.DeliveryInvoices))
+            feature?.permissionRows.orEmpty().forEach { row ->
+                CommercePermissionLine(row.label, context.hasPermission(row.permission))
+            }
             Text(
                 lastActionResult,
                 style = MaterialTheme.typography.bodyMedium,
