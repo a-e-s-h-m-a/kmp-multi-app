@@ -28,9 +28,22 @@ let package = Package(
             ],
             path: "SharedIOS",
             exclude: [
+                "CatalogFeatureModule.swift",
+                "CommerceFeatureModule.swift",
+                "DeliveryFeatureContentView.swift",
+                "DeliveryFeatureModule.swift",
+                "FeatureDetailView.swift",
+                "FeatureSharedViews.swift",
+                "FeatureTabShellView.swift",
+                "GenericCommerceFeatureModule.swift",
+                "GenericFeatureContentView.swift",
                 "LiveMultiAppClient.swift",
+                "ListsFeatureModule.swift",
                 "MultiAppStoreFactory.swift",
                 "MultiAppView.swift",
+                "NativePresentationExtensions.swift",
+                "OrdersFeatureModule.swift",
+                "ProductDetailsFeatureModule.swift",
             ]
         ),
         .testTarget(

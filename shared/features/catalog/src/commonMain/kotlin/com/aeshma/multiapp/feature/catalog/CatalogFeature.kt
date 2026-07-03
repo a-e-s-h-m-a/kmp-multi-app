@@ -1,14 +1,15 @@
 package com.aeshma.multiapp.feature.catalog
 
 import com.aeshma.multiapp.core.model.FeatureActionDefinition
+import com.aeshma.multiapp.core.model.CommerceFeatureModule
 import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.FeaturePermissionRow
 import com.aeshma.multiapp.core.model.FeatureUiBlock
 import com.aeshma.multiapp.core.model.PermissionId
 
-object CatalogFeature {
-    val definition: FeatureDefinitionSpec = FeatureDefinitionSpec(
+object CatalogFeature : CommerceFeatureModule {
+    override val definition: FeatureDefinitionSpec = FeatureDefinitionSpec(
         id = FeatureId.Catalog,
         title = "Catalog",
         requiredPermission = PermissionId.CatalogView,

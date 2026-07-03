@@ -1,6 +1,7 @@
 package com.aeshma.multiapp.application
 
 import com.aeshma.multiapp.core.model.AppContext
+import com.aeshma.multiapp.core.model.CommerceFeatureModule
 import com.aeshma.multiapp.core.model.FeatureActionDefinition
 import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
@@ -33,11 +34,11 @@ class FeatureDescriptor(
 
 class FeatureRegistry {
     private val features = listOf(
-        descriptor(OrdersFeature.definition),
-        descriptor(ListsFeature.definition),
-        descriptor(CatalogFeature.definition),
-        descriptor(ProductDetailsFeature.definition),
-        descriptor(DeliveryFeature.definition),
+        descriptor(OrdersFeature),
+        descriptor(ListsFeature),
+        descriptor(CatalogFeature),
+        descriptor(ProductDetailsFeature),
+        descriptor(DeliveryFeature),
     )
 
     fun availableFeatures(context: AppContext): List<FeatureDescriptor> =
@@ -45,4 +46,7 @@ class FeatureRegistry {
 
     private fun descriptor(definition: FeatureDefinitionSpec): FeatureDescriptor =
         FeatureDescriptor(definition) { definition.requiredPermission in it.commerceCapabilities }
+
+    private fun descriptor(module: CommerceFeatureModule): FeatureDescriptor =
+        descriptor(module.definition)
 }

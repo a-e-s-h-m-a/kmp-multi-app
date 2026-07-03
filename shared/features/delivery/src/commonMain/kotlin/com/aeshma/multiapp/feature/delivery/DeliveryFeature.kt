@@ -1,13 +1,14 @@
 package com.aeshma.multiapp.feature.delivery
 
+import com.aeshma.multiapp.core.model.CommerceFeatureModule
 import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.FeaturePermissionRow
 import com.aeshma.multiapp.core.model.FeatureUiBlock
 import com.aeshma.multiapp.core.model.PermissionId
 
-object DeliveryFeature {
-    val definition: FeatureDefinitionSpec = FeatureDefinitionSpec(
+object DeliveryFeature : CommerceFeatureModule {
+    override val definition: FeatureDefinitionSpec = FeatureDefinitionSpec(
         id = FeatureId.Delivery,
         title = "Delivery",
         requiredPermission = PermissionId.DeliveryView,

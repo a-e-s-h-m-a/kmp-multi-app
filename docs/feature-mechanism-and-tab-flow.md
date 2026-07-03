@@ -38,9 +38,11 @@ The app is simulating a product/experience/permission architecture:
 | BU definitions | `shared/core/config/.../CapabilityPresets.kt` |
 | Hardcoded login grants | `shared/core/config/.../HardcodedLoginConfig.kt` |
 | Feature ids and feature definition model | `shared/core/model/.../FeatureId.kt` |
+| Shared feature module contract | `shared/core/model/.../CommerceFeatureModule.kt` |
 | Feature registry | `shared/application/.../FeatureRegistry.kt` |
 | Android tab UI | `shared/ui/.../App.kt` |
 | iOS tab UI | `iosApp/SharedIOS/MultiAppView.swift` |
+| iOS feature module contract | `iosApp/SharedIOS/CommerceFeatureModule.swift` |
 
 ## Login To Experience Flow
 
@@ -147,17 +149,31 @@ data class FeatureDefinitionSpec(
 
 This means the application layer does not hardcode Orders/List/Catalog behavior inline. It imports feature definitions from modules and applies one generic resolution path.
 
+Each KMP feature object also conforms to `CommerceFeatureModule`:
+
+```kotlin
+interface CommerceFeatureModule {
+    val definition: FeatureDefinitionSpec
+}
+```
+
+That gives the shared registry a consistent module skeleton:
+
+```text
+feature module -> definition -> descriptor -> availability filtering
+```
+
 ## Feature Registry
 
 `FeatureRegistry` registers feature module definitions:
 
 ```kotlin
 private val features = listOf(
-    descriptor(OrdersFeature.definition),
-    descriptor(ListsFeature.definition),
-    descriptor(CatalogFeature.definition),
-    descriptor(ProductDetailsFeature.definition),
-    descriptor(DeliveryFeature.definition),
+    descriptor(OrdersFeature),
+    descriptor(ListsFeature),
+    descriptor(CatalogFeature),
+    descriptor(ProductDetailsFeature),
+    descriptor(DeliveryFeature),
 )
 ```
 
@@ -364,12 +380,27 @@ iOS uses native SwiftUI in:
 iosApp/SharedIOS/MultiAppView.swift
 ```
 
+`MultiAppView.swift` only owns the root/login/switcher flow. Feature UI is split into focused files:
+
+| File | Responsibility |
+|---|---|
+| `FeatureTabShellView.swift` | Post-login bottom `TabView` shell and `More` tab. |
+| `CommerceFeatureModule.swift` | Native feature module protocol, type erasure, and registry. |
+| `OrdersFeatureModule.swift` | Native Orders tab icon/renderer registration. |
+| `ListsFeatureModule.swift` | Native Lists tab icon/renderer registration. |
+| `CatalogFeatureModule.swift` | Native Catalog tab icon/renderer registration. |
+| `ProductDetailsFeatureModule.swift` | Native Product Details tab icon/renderer registration. |
+| `DeliveryFeatureModule.swift` | Native Delivery tab icon/custom renderer registration. |
+| `GenericFeatureContentView.swift` | Shared renderer for normal features. |
+| `DeliveryFeatureContentView.swift` | Custom renderer for stateful Delivery. |
+| `FeatureSharedViews.swift` | Shared feature summary rows/permission sections. |
+
 Main pieces:
 
 | SwiftUI view | Responsibility |
 |---|---|
 | `FeatureTabShellView` | Post-login bottom `TabView` shell. |
-| `FeatureTabContentView` | Chooses generic feature rendering or Delivery rendering. |
+| `CommerceFeatureRegistry` | Maps resolved feature id to native renderer module. |
 | `GenericFeatureContentView` | Renders normal feature screens. |
 | `GenericFeatureContentRows` | Renders visible UI blocks and allowed actions. |
 | `DeliveryFeatureContentView` | Renders delivery feature content and stateful delivery actions. |
@@ -393,6 +424,18 @@ SharedFeatureSnapshot
 - visible UI blocks
 
 The important difference is that iOS does not recompute feature permissions in Swift. KMP exports the already-resolved/filtered data.
+
+iOS uses a native feature module contract to decide how each resolved feature renders:
+
+```swift
+protocol CommerceFeatureModule {
+    var id: String { get }
+    var tabSystemImage: String { get }
+    func makeView(feature: NativeFeature, store: StoreOf<MultiAppFeature>) -> AnyView
+}
+```
+
+Most features use `GenericCommerceFeatureModule`, while Delivery registers a custom renderer because it has stateful order actions.
 
 ## Data Flow Diagram
 
@@ -475,4 +518,3 @@ If generated iOS constants are stale, run:
 5. Actions appear only when allowed.
 6. Tapping generic actions updates local result text.
 7. Tapping Delivery actions changes order status and changes future available actions.
-

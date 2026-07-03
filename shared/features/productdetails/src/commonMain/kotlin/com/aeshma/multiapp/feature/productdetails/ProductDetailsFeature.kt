@@ -1,14 +1,15 @@
 package com.aeshma.multiapp.feature.productdetails
 
 import com.aeshma.multiapp.core.model.FeatureActionDefinition
+import com.aeshma.multiapp.core.model.CommerceFeatureModule
 import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.FeaturePermissionRow
 import com.aeshma.multiapp.core.model.FeatureUiBlock
 import com.aeshma.multiapp.core.model.PermissionId
 
-object ProductDetailsFeature {
-    val definition: FeatureDefinitionSpec = FeatureDefinitionSpec(
+object ProductDetailsFeature : CommerceFeatureModule {
+    override val definition: FeatureDefinitionSpec = FeatureDefinitionSpec(
         id = FeatureId.ProductDetails,
         title = "Product Details",
         requiredPermission = PermissionId.PdpView,
