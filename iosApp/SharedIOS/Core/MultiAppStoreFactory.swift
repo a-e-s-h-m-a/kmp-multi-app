@@ -1,7 +1,7 @@
 import ComposableArchitecture
 
-enum MultiAppStoreFactory {
-    static func make(appIdName: String) -> StoreOf<MultiAppFeature> {
+public enum MultiAppStoreFactory {
+    public static func make(appIdName: String) -> StoreOf<MultiAppFeature> {
         let client = MultiAppClient.live(appIdName: appIdName)
 
         return Store(
@@ -17,7 +17,7 @@ enum MultiAppStoreFactory {
         }
     }
 
-    static func makeProduct(
+    public static func makeProduct(
         productIdName: String,
         buildFeatureBundle: [String] = []
     ) -> StoreOf<MultiAppFeature> {

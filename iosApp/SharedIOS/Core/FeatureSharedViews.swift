@@ -1,9 +1,13 @@
 import SwiftUI
 
-struct FeatureSummaryRow: View {
+public struct FeatureSummaryRow: View {
     let feature: NativeFeature
 
-    var body: some View {
+    public init(feature: NativeFeature) {
+        self.feature = feature
+    }
+
+    public var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(feature.title)
                 .font(.headline)
@@ -19,10 +23,14 @@ struct FeatureSummaryRow: View {
     }
 }
 
-struct FeatureSummarySection: View {
+public struct FeatureSummarySection: View {
     let feature: NativeFeature
 
-    var body: some View {
+    public init(feature: NativeFeature) {
+        self.feature = feature
+    }
+
+    public var body: some View {
         Section("Permissions") {
             Text("Required: \(feature.requiredPermission)")
             if feature.permissionRows.isEmpty {
@@ -46,4 +54,3 @@ struct FeatureSummarySection: View {
         }
     }
 }
-

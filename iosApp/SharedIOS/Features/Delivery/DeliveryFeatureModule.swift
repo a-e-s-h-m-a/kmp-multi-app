@@ -1,7 +1,11 @@
+#if SWIFT_PACKAGE
+import SharedIOSCore
+#endif
 import SwiftUI
 
-enum DeliveryFeatureModule {
-    static let module = AnyCommerceFeatureModule(
+@MainActor
+public enum DeliveryFeatureModule {
+    public static let module = AnyCommerceFeatureModule(
         id: "delivery",
         tabSystemImage: "truck.box",
         viewFactory: { feature, store in
@@ -9,4 +13,3 @@ enum DeliveryFeatureModule {
         }
     )
 }
-

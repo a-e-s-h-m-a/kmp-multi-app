@@ -1,19 +1,21 @@
 import ComposableArchitecture
 import SwiftUI
 
-protocol CommerceFeatureModule {
+@MainActor
+public protocol CommerceFeatureModule {
     var id: String { get }
     var tabSystemImage: String { get }
 
     func makeView(feature: NativeFeature, store: StoreOf<MultiAppFeature>) -> AnyView
 }
 
-struct AnyCommerceFeatureModule: CommerceFeatureModule {
-    let id: String
-    let tabSystemImage: String
+@MainActor
+public struct AnyCommerceFeatureModule: CommerceFeatureModule {
+    public let id: String
+    public let tabSystemImage: String
     private let viewFactory: (NativeFeature, StoreOf<MultiAppFeature>) -> AnyView
 
-    init(
+    public init(
         id: String,
         tabSystemImage: String,
         viewFactory: @escaping (NativeFeature, StoreOf<MultiAppFeature>) -> AnyView
@@ -23,32 +25,20 @@ struct AnyCommerceFeatureModule: CommerceFeatureModule {
         self.viewFactory = viewFactory
     }
 
-    func makeView(feature: NativeFeature, store: StoreOf<MultiAppFeature>) -> AnyView {
+    public func makeView(feature: NativeFeature, store: StoreOf<MultiAppFeature>) -> AnyView {
         viewFactory(feature, store)
     }
 }
 
-struct CommerceFeatureRegistry {
+@MainActor
+public struct CommerceFeatureRegistry {
     private let modules: [String: AnyCommerceFeatureModule]
 
-    init(modules: [AnyCommerceFeatureModule]) {
+    public init(modules: [AnyCommerceFeatureModule]) {
         self.modules = Dictionary(uniqueKeysWithValues: modules.map { ($0.id, $0) })
     }
 
-    func module(for feature: NativeFeature) -> AnyCommerceFeatureModule {
+    public func module(for feature: NativeFeature) -> AnyCommerceFeatureModule {
         modules[feature.id] ?? GenericCommerceFeatureModule.make(id: feature.id, tabSystemImage: "square")
     }
 }
-
-extension CommerceFeatureRegistry {
-    static let shared = CommerceFeatureRegistry(
-        modules: [
-            OrdersFeatureModule.module,
-            ListsFeatureModule.module,
-            CatalogFeatureModule.module,
-            ProductDetailsFeatureModule.module,
-            DeliveryFeatureModule.module,
-        ]
-    )
-}
-

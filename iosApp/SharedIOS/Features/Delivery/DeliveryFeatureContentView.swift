@@ -1,11 +1,19 @@
 import ComposableArchitecture
+#if SWIFT_PACKAGE
+import SharedIOSCore
+#endif
 import SwiftUI
 
-struct DeliveryFeatureContentView: View {
+public struct DeliveryFeatureContentView: View {
     let feature: NativeFeature
     let store: StoreOf<MultiAppFeature>
 
-    var body: some View {
+    public init(feature: NativeFeature, store: StoreOf<MultiAppFeature>) {
+        self.feature = feature
+        self.store = store
+    }
+
+    public var body: some View {
         List {
             FeatureSummarySection(feature: feature)
             if !feature.uiBlocks.isEmpty {
@@ -49,4 +57,3 @@ struct DeliveryFeatureContentView: View {
         .background(store.selectedTheme.backgroundColor)
     }
 }
-

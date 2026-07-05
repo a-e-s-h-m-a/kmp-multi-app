@@ -1,10 +1,19 @@
 import ComposableArchitecture
 import SwiftUI
 
-struct MultiAppRootView: View {
+public struct MultiAppRootView: View {
     let store: StoreOf<MultiAppFeature>
+    let featureRegistry: CommerceFeatureRegistry
 
-    var body: some View {
+    public init(
+        store: StoreOf<MultiAppFeature>,
+        featureRegistry: CommerceFeatureRegistry
+    ) {
+        self.store = store
+        self.featureRegistry = featureRegistry
+    }
+
+    public var body: some View {
         NavigationStack {
             switch store.selectedScreen {
             case .login:
@@ -12,9 +21,13 @@ struct MultiAppRootView: View {
             case .experienceSwitcher:
                 ExperienceSwitcherView(store: store)
             case .features:
-                FeatureTabShellView(store: store)
+                FeatureTabShellView(store: store, featureRegistry: featureRegistry)
             case let .feature(featureId):
-                FeatureDetailView(featureId: featureId, store: store)
+                FeatureDetailView(
+                    featureId: featureId,
+                    store: store,
+                    featureRegistry: featureRegistry
+                )
             }
         }
         .tint(store.selectedTheme.primaryColor)

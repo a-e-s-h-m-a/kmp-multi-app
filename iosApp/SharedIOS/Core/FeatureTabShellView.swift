@@ -3,7 +3,7 @@ import SwiftUI
 
 struct FeatureTabShellView: View {
     let store: StoreOf<MultiAppFeature>
-    private let featureRegistry = CommerceFeatureRegistry.shared
+    let featureRegistry: CommerceFeatureRegistry
     @State private var selectedTab = 0
 
     private var tabFeatures: [NativeFeature] {
@@ -51,7 +51,7 @@ struct FeatureTabShellView: View {
         }
         .navigationTitle(store.appName)
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
+            ToolbarItemGroup {
                 Button("Back") {
                     store.send(.previousTapped)
                 }

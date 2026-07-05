@@ -42,7 +42,7 @@ The app is simulating a product/experience/permission architecture:
 | Feature registry | `shared/application/.../FeatureRegistry.kt` |
 | Android tab UI | `shared/ui/.../App.kt` |
 | iOS tab UI | `iosApp/SharedIOS/MultiAppView.swift` |
-| iOS feature module contract | `iosApp/SharedIOS/CommerceFeatureModule.swift` |
+| iOS feature module contract | `iosApp/SharedIOS/Core/CommerceFeatureModule.swift` |
 
 ## Login To Experience Flow
 

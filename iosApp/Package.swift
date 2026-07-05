@@ -10,6 +10,30 @@ let package = Package(
     ],
     products: [
         .library(name: "SharedIOSCore", targets: ["SharedIOSCore"]),
+        .library(name: "FeatureOrders", targets: ["FeatureOrders"]),
+        .library(name: "FeatureLists", targets: ["FeatureLists"]),
+        .library(name: "FeatureCatalog", targets: ["FeatureCatalog"]),
+        .library(name: "FeatureProductDetails", targets: ["FeatureProductDetails"]),
+        .library(name: "FeatureDelivery", targets: ["FeatureDelivery"]),
+        .library(
+            name: "AppOneIOSFeatures",
+            targets: ["SharedIOSCore", "FeatureOrders", "FeatureCatalog", "FeatureProductDetails", "FeatureDelivery"]
+        ),
+        .library(
+            name: "AppTwoIOSFeatures",
+            targets: ["SharedIOSCore", "FeatureOrders", "FeatureLists", "FeatureDelivery"]
+        ),
+        .library(
+            name: "SuperAppIOSFeatures",
+            targets: [
+                "SharedIOSCore",
+                "FeatureOrders",
+                "FeatureLists",
+                "FeatureCatalog",
+                "FeatureProductDetails",
+                "FeatureDelivery",
+            ]
+        ),
     ],
     dependencies: [
         .package(
@@ -26,25 +50,36 @@ let package = Package(
                     package: "swift-composable-architecture"
                 ),
             ],
-            path: "SharedIOS",
+            path: "SharedIOS/Core",
             exclude: [
-                "CatalogFeatureModule.swift",
-                "CommerceFeatureModule.swift",
-                "DeliveryFeatureContentView.swift",
-                "DeliveryFeatureModule.swift",
-                "FeatureDetailView.swift",
-                "FeatureSharedViews.swift",
-                "FeatureTabShellView.swift",
-                "GenericCommerceFeatureModule.swift",
-                "GenericFeatureContentView.swift",
                 "LiveMultiAppClient.swift",
-                "ListsFeatureModule.swift",
                 "MultiAppStoreFactory.swift",
-                "MultiAppView.swift",
-                "NativePresentationExtensions.swift",
-                "OrdersFeatureModule.swift",
-                "ProductDetailsFeatureModule.swift",
             ]
+        ),
+        .target(
+            name: "FeatureOrders",
+            dependencies: ["SharedIOSCore"],
+            path: "SharedIOS/Features/Orders"
+        ),
+        .target(
+            name: "FeatureLists",
+            dependencies: ["SharedIOSCore"],
+            path: "SharedIOS/Features/Lists"
+        ),
+        .target(
+            name: "FeatureCatalog",
+            dependencies: ["SharedIOSCore"],
+            path: "SharedIOS/Features/Catalog"
+        ),
+        .target(
+            name: "FeatureProductDetails",
+            dependencies: ["SharedIOSCore"],
+            path: "SharedIOS/Features/ProductDetails"
+        ),
+        .target(
+            name: "FeatureDelivery",
+            dependencies: ["SharedIOSCore"],
+            path: "SharedIOS/Features/Delivery"
         ),
         .testTarget(
             name: "SharedIOSCoreTests",

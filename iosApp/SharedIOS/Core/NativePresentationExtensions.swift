@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension NativeTheme {
+public extension NativeTheme {
     var primaryColor: Color {
         switch self {
         case .boutique:

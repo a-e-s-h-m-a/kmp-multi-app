@@ -219,7 +219,7 @@ config/product-feature-bundles.json
 Android flavors read this config in `androidApp/build.gradle.kts`. iOS constants are generated from the same config into:
 
 ```text
-iosApp/SharedIOS/ProductFeatureBundles.generated.swift
+iosApp/SharedIOS/Core/ProductFeatureBundles.generated.swift
 ```
 
 Regenerate the Swift constants with:

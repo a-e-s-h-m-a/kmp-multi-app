@@ -1,27 +1,61 @@
 import ComposableArchitecture
 
 @Reducer
-struct MultiAppFeature {
+public struct MultiAppFeature {
     @ObservableState
-    struct State: Equatable {
-        var appName: String
-        var buildFeatureBundle: [String] = []
-        var supportedUsernames: [String]
-        var selectedUsername: String
-        var loggedInUserSummary: String?
-        var resolvedExperienceOptions: [NativeResolvedExperienceOption] = []
-        var selectedExperience: NativeResolvedExperienceOption?
-        var selectedTheme: NativeTheme = .operations
-        var availableFeatures: [NativeFeature] = []
-        var loginError: String?
-        var selectedScreen: NativeScreen = .login
-        var deliveryExperienceName = "Delivery Disabled"
-        var deliveryOrders: [NativeDeliveryOrder] = []
-        var lastActionResult = "No action has been triggered yet."
-        var isLoading = false
+    public struct State: Equatable {
+        public var appName: String
+        public var buildFeatureBundle: [String] = []
+        public var supportedUsernames: [String]
+        public var selectedUsername: String
+        public var loggedInUserSummary: String?
+        public var resolvedExperienceOptions: [NativeResolvedExperienceOption] = []
+        public var selectedExperience: NativeResolvedExperienceOption?
+        public var selectedTheme: NativeTheme = .operations
+        public var availableFeatures: [NativeFeature] = []
+        public var loginError: String?
+        public var selectedScreen: NativeScreen = .login
+        public var deliveryExperienceName = "Delivery Disabled"
+        public var deliveryOrders: [NativeDeliveryOrder] = []
+        public var lastActionResult = "No action has been triggered yet."
+        public var isLoading = false
+
+        public init(
+            appName: String,
+            buildFeatureBundle: [String] = [],
+            supportedUsernames: [String],
+            selectedUsername: String,
+            loggedInUserSummary: String? = nil,
+            resolvedExperienceOptions: [NativeResolvedExperienceOption] = [],
+            selectedExperience: NativeResolvedExperienceOption? = nil,
+            selectedTheme: NativeTheme = .operations,
+            availableFeatures: [NativeFeature] = [],
+            loginError: String? = nil,
+            selectedScreen: NativeScreen = .login,
+            deliveryExperienceName: String = "Delivery Disabled",
+            deliveryOrders: [NativeDeliveryOrder] = [],
+            lastActionResult: String = "No action has been triggered yet.",
+            isLoading: Bool = false
+        ) {
+            self.appName = appName
+            self.buildFeatureBundle = buildFeatureBundle
+            self.supportedUsernames = supportedUsernames
+            self.selectedUsername = selectedUsername
+            self.loggedInUserSummary = loggedInUserSummary
+            self.resolvedExperienceOptions = resolvedExperienceOptions
+            self.selectedExperience = selectedExperience
+            self.selectedTheme = selectedTheme
+            self.availableFeatures = availableFeatures
+            self.loginError = loginError
+            self.selectedScreen = selectedScreen
+            self.deliveryExperienceName = deliveryExperienceName
+            self.deliveryOrders = deliveryOrders
+            self.lastActionResult = lastActionResult
+            self.isLoading = isLoading
+        }
     }
 
-    enum Action: Equatable {
+    public enum Action: Equatable {
         case usernameChanged(String)
         case loginTapped
         case resolveSucceeded([NativeResolvedExperienceOption])
@@ -41,7 +75,9 @@ struct MultiAppFeature {
 
     @Dependency(\.multiAppClient) private var client
 
-    var body: some ReducerOf<Self> {
+    public init() {}
+
+    public var body: some ReducerOf<Self> {
         Reduce { state, action in
             switch action {
             case let .usernameChanged(username):

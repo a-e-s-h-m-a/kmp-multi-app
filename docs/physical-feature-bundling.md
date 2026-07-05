@@ -195,7 +195,14 @@ If `appTwo` code tries to import `CatalogFeature`, it should fail to compile bec
 
 ## iOS Mechanism
 
-iOS builds the same `SharedLogic.framework` name, but with a different feature set per Xcode target.
+iOS has two physical bundling layers:
+
+1. KMP feature code inside `SharedLogic.framework`.
+2. Native Swift feature UI modules.
+
+### KMP Framework Bundle
+
+iOS builds the same `SharedLogic.framework` name, but with a different KMP feature set per Xcode target.
 
 Each Xcode target passes a Gradle property:
 
@@ -258,6 +265,85 @@ flowchart TD
 ```
 
 The Swift code still imports `SharedLogic`. The physical difference is inside the framework produced for that target.
+
+### Native Swift UI Bundle
+
+Native Swift feature UI is split into package-style folders:
+
+```text
+iosApp/SharedIOS/Core
+iosApp/SharedIOS/Features/Orders
+iosApp/SharedIOS/Features/Lists
+iosApp/SharedIOS/Features/Catalog
+iosApp/SharedIOS/Features/ProductDetails
+iosApp/SharedIOS/Features/Delivery
+```
+
+`Package.swift` defines package targets for each native feature UI module:
+
+```swift
+.target(
+    name: "FeatureOrders",
+    dependencies: ["SharedIOSCore"],
+    path: "SharedIOS/Features/Orders"
+)
+```
+
+It also defines product-level library products:
+
+```swift
+.library(
+    name: "AppTwoIOSFeatures",
+    targets: ["SharedIOSCore", "FeatureOrders", "FeatureLists", "FeatureDelivery"]
+)
+```
+
+The app targets inject a `CommerceFeatureRegistry` instead of using a global registry:
+
+```swift
+MultiAppRootView(
+    store: store,
+    featureRegistry: CommerceFeatureRegistry.appTwo
+)
+```
+
+Each product owns a tiny registry file:
+
+```swift
+extension CommerceFeatureRegistry {
+    static let appTwo = CommerceFeatureRegistry(
+        modules: [
+            OrdersFeatureModule.module,
+            ListsFeatureModule.module,
+            DeliveryFeatureModule.module,
+        ]
+    )
+}
+```
+
+The synchronized Xcode `SharedIOS` folder excludes unused native feature folders per target:
+
+| Target | Excluded native feature folders |
+|---|---|
+| AppOne | `Features/Lists` |
+| AppTwo | `Features/Catalog`, `Features/ProductDetails` |
+| SuperApp | none |
+
+So AppTwo does not compile the Catalog/Product Details Swift UI files, and AppOne does not compile the Lists Swift UI file.
+
+Native iOS UI flow:
+
+```mermaid
+flowchart TD
+    A["Xcode product target"] --> B["Target-specific registry"]
+    A --> C["Target membership excludes unused feature UI folders"]
+    B --> D["MultiAppRootView(featureRegistry)"]
+    D --> E["FeatureTabShellView"]
+    D --> F["FeatureDetailView"]
+    E --> G["featureRegistry.module(for:)"]
+    F --> G
+    G --> H["Feature module view factory"]
+```
 
 ## Runtime Resolution Still Applies
 
@@ -346,5 +432,7 @@ Both should report no matching dependency.
 4. Add `androidApp/src/<flavor>/kotlin/.../ProductFeatureBundle.kt`.
 5. Add an iOS bundle entry in `iosFeatureBundles` inside `shared/application/build.gradle.kts`.
 6. Update the Xcode target script to pass `-PiosProductBundle=<bundleName>`.
-7. Run compile and dependency-insight checks to prove excluded modules are absent.
-
+7. Add a native Swift feature registry file for the app target.
+8. Update Xcode synchronized folder exceptions so unused `SharedIOS/Features/*` folders are not target members.
+9. Add or update SwiftPM product-level libraries in `iosApp/Package.swift`.
+10. Run compile and dependency-insight checks to prove excluded modules are absent.

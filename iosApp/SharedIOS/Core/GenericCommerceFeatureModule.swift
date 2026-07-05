@@ -1,7 +1,8 @@
 import SwiftUI
 
-enum GenericCommerceFeatureModule {
-    static func make(id: String, tabSystemImage: String) -> AnyCommerceFeatureModule {
+@MainActor
+public enum GenericCommerceFeatureModule {
+    public static func make(id: String, tabSystemImage: String) -> AnyCommerceFeatureModule {
         AnyCommerceFeatureModule(
             id: id,
             tabSystemImage: tabSystemImage,
@@ -11,4 +12,3 @@ enum GenericCommerceFeatureModule {
         )
     }
 }
-

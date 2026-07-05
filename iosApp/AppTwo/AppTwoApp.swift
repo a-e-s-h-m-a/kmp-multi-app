@@ -6,10 +6,11 @@ struct AppTwoApp: App {
         productIdName: ProductFeatureBundles.appTwo.productId,
         buildFeatureBundle: ProductFeatureBundles.appTwo.bundledFeatures
     )
+    private let featureRegistry = CommerceFeatureRegistry.appTwo
 
     var body: some Scene {
         WindowGroup {
-            MultiAppRootView(store: store)
+            MultiAppRootView(store: store, featureRegistry: featureRegistry)
         }
     }
 }

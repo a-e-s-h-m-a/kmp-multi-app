@@ -1,10 +1,15 @@
 import SwiftUI
 
-struct GenericFeatureContentView: View {
+public struct GenericFeatureContentView: View {
     let feature: NativeFeature
     let theme: NativeTheme
 
-    var body: some View {
+    public init(feature: NativeFeature, theme: NativeTheme) {
+        self.feature = feature
+        self.theme = theme
+    }
+
+    public var body: some View {
         List {
             FeatureSummarySection(feature: feature)
             GenericFeatureContentRows(feature: feature, theme: theme)
@@ -15,12 +20,17 @@ struct GenericFeatureContentView: View {
     }
 }
 
-struct GenericFeatureContentRows: View {
+public struct GenericFeatureContentRows: View {
     let feature: NativeFeature
     let theme: NativeTheme
     @State private var lastActionResult = "No action has been triggered yet."
 
-    var body: some View {
+    public init(feature: NativeFeature, theme: NativeTheme) {
+        self.feature = feature
+        self.theme = theme
+    }
+
+    public var body: some View {
         Section("Capability panels") {
             if feature.uiBlocks.isEmpty {
                 Text("Capability-driven panels hidden for this login.")
@@ -59,4 +69,3 @@ struct GenericFeatureContentRows: View {
         }
     }
 }
-
