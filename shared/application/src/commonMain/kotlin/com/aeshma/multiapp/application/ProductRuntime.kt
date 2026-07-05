@@ -22,6 +22,7 @@ import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.BusinessUnitId
 import com.aeshma.multiapp.core.model.CommerceCapabilities
 import com.aeshma.multiapp.core.model.ExperienceId
+import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.core.model.RoleId
@@ -38,6 +39,7 @@ class ProductRuntime internal constructor(
     private val experienceCatalog: ExperienceCatalog,
     private val businessUnitCatalog: BusinessUnitCatalog,
     private val permissionTemplateCatalog: PermissionTemplateCatalog,
+    private val featureDefinitions: List<FeatureDefinitionSpec>,
 ) {
     private val appRuntimesByName = mutableMapOf<String, AppRuntime>()
 
@@ -142,12 +144,12 @@ class ProductRuntime internal constructor(
         val appDefinition = appCatalog.definition(experienceDefinition.hostAppId)
 
         return appRuntimesByName.getOrPut(appDefinition.id.externalName.lowercase()) {
-            createAppRuntime(appDefinition.id, appCatalog)
+            createAppRuntime(appDefinition.id, appCatalog, featureDefinitions)
         }
     }
 
     fun appRuntimeForHost(appId: AppId): AppRuntime =
-        createAppRuntime(appId, appCatalog)
+        createAppRuntime(appId, appCatalog, featureDefinitions)
 }
 
 fun createProductRuntime(
@@ -157,6 +159,7 @@ fun createProductRuntime(
     experienceCatalog: ExperienceCatalog = ExperienceCatalog(defaultExperienceDefinitions()),
     businessUnitCatalog: BusinessUnitCatalog = BusinessUnitCatalog(defaultBusinessUnitDefinitions()),
     permissionTemplateCatalog: PermissionTemplateCatalog = PermissionTemplateCatalog(defaultPermissionTemplates()),
+    featureDefinitions: List<FeatureDefinitionSpec> = emptyList(),
 ): ProductRuntime =
     ProductRuntime(
         productDefinition = productCatalog.definition(productId),
@@ -164,4 +167,5 @@ fun createProductRuntime(
         experienceCatalog = experienceCatalog,
         businessUnitCatalog = businessUnitCatalog,
         permissionTemplateCatalog = permissionTemplateCatalog,
+        featureDefinitions = featureDefinitions,
     )

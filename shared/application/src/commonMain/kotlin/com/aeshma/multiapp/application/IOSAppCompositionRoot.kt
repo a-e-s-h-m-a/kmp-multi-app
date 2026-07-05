@@ -5,7 +5,10 @@ import com.aeshma.multiapp.core.config.defaultExperienceDefinitions
 import com.aeshma.multiapp.core.model.AppId
 
 class IOSAppCompositionRoot(appIdName: String) {
-    private val runtime = createAppRuntime(AppId.fromExternalName(appIdName))
+    private val runtime = createAppRuntime(
+        appId = AppId.fromExternalName(appIdName),
+        featureDefinitions = platformFeatureDefinitions(),
+    )
     private val experienceDefinition = ExperienceCatalog(defaultExperienceDefinitions())
         .definitions()
         .first { it.hostAppId == runtime.appId }

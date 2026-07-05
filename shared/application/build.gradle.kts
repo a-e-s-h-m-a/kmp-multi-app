@@ -1,10 +1,79 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.ListProperty
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+abstract class GenerateIosProductFeatureDefinitions : DefaultTask() {
+    @get:Input
+    abstract val selectedFeatures: ListProperty<String>
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        val features = selectedFeatures.get()
+        val file = outputDir.get().file(
+            "com/aeshma/multiapp/application/PlatformFeatureDefinitions.ios.kt",
+        ).asFile
+        file.parentFile.mkdirs()
+
+        val imports = buildList {
+            add("import com.aeshma.multiapp.core.model.FeatureDefinitionSpec")
+            if ("orders" in features) add("import com.aeshma.multiapp.feature.orders.OrdersFeature")
+            if ("lists" in features) add("import com.aeshma.multiapp.feature.lists.ListsFeature")
+            if ("catalog" in features) add("import com.aeshma.multiapp.feature.catalog.CatalogFeature")
+            if ("productdetails" in features) add("import com.aeshma.multiapp.feature.productdetails.ProductDetailsFeature")
+            if ("delivery" in features) add("import com.aeshma.multiapp.feature.delivery.DeliveryFeature")
+        }.joinToString("\n")
+
+        val definitions = buildList {
+            if ("orders" in features) add("OrdersFeature.definition")
+            if ("lists" in features) add("ListsFeature.definition")
+            if ("catalog" in features) add("CatalogFeature.definition")
+            if ("productdetails" in features) add("ProductDetailsFeature.definition")
+            if ("delivery" in features) add("DeliveryFeature.definition")
+        }.joinToString(",\n    ")
+
+        file.writeText(
+            """
+            package com.aeshma.multiapp.application
+
+            $imports
+
+            internal actual fun platformFeatureDefinitions(): List<FeatureDefinitionSpec> = listOf(
+                $definitions,
+            )
+            """.trimIndent(),
+        )
+    }
+}
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
     alias(libs.plugins.metro)
     alias(libs.plugins.skie)
+}
+
+val iosProductBundle = providers.gradleProperty("iosProductBundle").orElse("superApp")
+val iosFeatureBundles = mapOf(
+    "appOne" to listOf("orders", "catalog", "productdetails", "delivery"),
+    "appTwo" to listOf("orders", "lists", "delivery"),
+    "superApp" to listOf("orders", "lists", "catalog", "productdetails", "delivery"),
+)
+val selectedIosFeatures = iosFeatureBundles[iosProductBundle.get()]
+    ?: error("Unknown iosProductBundle '${iosProductBundle.get()}'. Expected one of ${iosFeatureBundles.keys}.")
+val generatedIosFeatureDefinitionsDir = layout.buildDirectory.dir(
+    "generated/iosProductFeatureDefinitions/${iosProductBundle.get()}/kotlin",
+)
+
+val generateIosProductFeatureDefinitions by tasks.registering(GenerateIosProductFeatureDefinitions::class) {
+    selectedFeatures.set(selectedIosFeatures)
+    outputDir.set(generatedIosFeatureDefinitionsDir)
 }
 
 kotlin {
@@ -14,10 +83,6 @@ kotlin {
             isStatic = true
             export(projects.shared.core.model)
             export(projects.shared.core.config)
-            export(projects.shared.features.orders)
-            export(projects.shared.features.lists)
-            export(projects.shared.features.catalog)
-            export(projects.shared.features.productdetails)
             export(projects.shared.features.delivery)
         }
     }
@@ -35,14 +100,29 @@ kotlin {
             api(projects.shared.core.model)
             api(projects.shared.core.config)
             api(projects.shared.core.analytics)
-            api(projects.shared.features.orders)
-            api(projects.shared.features.lists)
-            api(projects.shared.features.catalog)
-            api(projects.shared.features.productdetails)
             api(projects.shared.features.delivery)
+        }
+        iosMain {
+            kotlin.srcDir(generatedIosFeatureDefinitionsDir)
+        }
+        iosMain.dependencies {
+            if ("orders" in selectedIosFeatures) api(projects.shared.features.orders)
+            if ("lists" in selectedIosFeatures) api(projects.shared.features.lists)
+            if ("catalog" in selectedIosFeatures) api(projects.shared.features.catalog)
+            if ("productdetails" in selectedIosFeatures) api(projects.shared.features.productdetails)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(projects.shared.features.orders)
+            implementation(projects.shared.features.lists)
+            implementation(projects.shared.features.catalog)
+            implementation(projects.shared.features.productdetails)
         }
+    }
+}
+
+tasks.configureEach {
+    if (name.startsWith("compileKotlinIos") || name.startsWith("compileTestKotlinIos")) {
+        dependsOn(generateIosProductFeatureDefinitions)
     }
 }

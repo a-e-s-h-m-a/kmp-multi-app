@@ -46,6 +46,7 @@ import com.aeshma.multiapp.application.createAppRuntime
 import com.aeshma.multiapp.application.createProductRuntime
 import com.aeshma.multiapp.core.model.AppContext
 import com.aeshma.multiapp.core.model.AppId
+import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.PermissionId
 import com.aeshma.multiapp.core.model.ProductId
@@ -97,8 +98,11 @@ fun App(appId: AppId = AppId.AppOne) {
 fun ProductApp(
     productId: ProductId = ProductId.AppOneStandalone,
     buildFeatureBundle: Set<FeatureId>? = null,
+    featureDefinitions: List<FeatureDefinitionSpec> = emptyList(),
 ) {
-    val productRuntime = remember(productId) { createProductRuntime(productId) }
+    val productRuntime = remember(productId, featureDefinitions) {
+        createProductRuntime(productId, featureDefinitions = featureDefinitions)
+    }
     val packagedFeatures = remember(productRuntime, buildFeatureBundle) {
         buildFeatureBundle ?: productRuntime.bundledFeatures
     }

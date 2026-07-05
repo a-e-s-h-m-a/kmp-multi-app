@@ -11,8 +11,13 @@ import com.aeshma.multiapp.core.config.AppCatalog
 import com.aeshma.multiapp.core.config.defaultAppDefinitions
 import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.core.model.RoleId
+import com.aeshma.multiapp.feature.catalog.CatalogFeature
 import com.aeshma.multiapp.feature.delivery.DeliveryPolicyResolver
+import com.aeshma.multiapp.feature.delivery.DeliveryFeature
 import com.aeshma.multiapp.feature.delivery.SampleDeliveryRepository
+import com.aeshma.multiapp.feature.lists.ListsFeature
+import com.aeshma.multiapp.feature.orders.OrdersFeature
+import com.aeshma.multiapp.feature.productdetails.ProductDetailsFeature
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.EmptyCoroutineContext
 import kotlin.coroutines.startCoroutine
@@ -25,9 +30,20 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class AppRuntimeTest {
+    private val testFeatureDefinitions = listOf(
+        OrdersFeature.definition,
+        ListsFeature.definition,
+        CatalogFeature.definition,
+        ProductDetailsFeature.definition,
+        DeliveryFeature.definition,
+    )
+
     @Test
     fun metroGraphCreatesRuntimeForSelectedApp() {
-        val runtime = createAppRuntime(AppId.fromExternalName("apptwo"))
+        val runtime = createAppRuntime(
+            appId = AppId.fromExternalName("apptwo"),
+            featureDefinitions = testFeatureDefinitions,
+        )
 
         assertEquals(AppId.AppTwo, runtime.appId)
         assertEquals("admin", runtime.appDefinition.defaultUsername)
@@ -35,7 +51,7 @@ class AppRuntimeTest {
 
     @Test
     fun standaloneProductAutoTargetsSingleExperience() {
-        val runtime = createProductRuntime(ProductId.AppOneStandalone)
+        val runtime = createProductRuntime(ProductId.AppOneStandalone, featureDefinitions = testFeatureDefinitions)
 
         assertEquals(ProductId.AppOneStandalone, runtime.productId)
         assertEquals(ExperienceId.Shop, runtime.defaultExperience)
@@ -45,7 +61,10 @@ class AppRuntimeTest {
 
     @Test
     fun superAppCanLaunchMultipleExperiences() {
-        val runtime = createProductRuntime(ProductId.fromExternalName("superapp"))
+        val runtime = createProductRuntime(
+            productId = ProductId.fromExternalName("superapp"),
+            featureDefinitions = testFeatureDefinitions,
+        )
 
         assertEquals(ProductId.SuperApp, runtime.productId)
         assertEquals(null, runtime.defaultExperience)
@@ -56,9 +75,9 @@ class AppRuntimeTest {
 
     @Test
     fun productRuntimeFiltersExperiencesByBusinessUnit() {
-        val superApp = createProductRuntime(ProductId.SuperApp)
-        val appOne = createProductRuntime(ProductId.AppOneStandalone)
-        val appTwo = createProductRuntime(ProductId.AppTwoStandalone)
+        val superApp = createProductRuntime(ProductId.SuperApp, featureDefinitions = testFeatureDefinitions)
+        val appOne = createProductRuntime(ProductId.AppOneStandalone, featureDefinitions = testFeatureDefinitions)
+        val appTwo = createProductRuntime(ProductId.AppTwoStandalone, featureDefinitions = testFeatureDefinitions)
 
         assertEquals(listOf("Newport&Buckhead"), superApp.allowedExperiencesFor(BusinessUnitId.SSMG).map { it.displayName })
         assertEquals(listOf("Shop"), superApp.allowedExperiencesFor(BusinessUnitId.USBL).map { it.displayName })
@@ -70,9 +89,9 @@ class AppRuntimeTest {
 
     @Test
     fun productRuntimeExposesBuildTimeFeatureUnionForSupportedExperiences() {
-        val appOne = createProductRuntime(ProductId.AppOneStandalone)
-        val appTwo = createProductRuntime(ProductId.AppTwoStandalone)
-        val superApp = createProductRuntime(ProductId.SuperApp)
+        val appOne = createProductRuntime(ProductId.AppOneStandalone, featureDefinitions = testFeatureDefinitions)
+        val appTwo = createProductRuntime(ProductId.AppTwoStandalone, featureDefinitions = testFeatureDefinitions)
+        val superApp = createProductRuntime(ProductId.SuperApp, featureDefinitions = testFeatureDefinitions)
 
         assertEquals(
             setOf(FeatureId.Orders, FeatureId.Catalog, FeatureId.ProductDetails, FeatureId.Delivery),
@@ -90,7 +109,7 @@ class AppRuntimeTest {
 
     @Test
     fun commerceCapabilitiesIntersectUserGrantsWithBusinessUnitAndExperienceCeilings() {
-        val runtime = createProductRuntime(ProductId.SuperApp)
+        val runtime = createProductRuntime(ProductId.SuperApp, featureDefinitions = testFeatureDefinitions)
 
         val capabilities = runtime.resolvedCommerceCapabilities(
             experienceId = ExperienceId.Shop,
@@ -108,7 +127,7 @@ class AppRuntimeTest {
 
     @Test
     fun productRuntimeResolvesHardcodedLoginGrantsIntoExperienceOptions() {
-        val runtime = createProductRuntime(ProductId.SuperApp)
+        val runtime = createProductRuntime(ProductId.SuperApp, featureDefinitions = testFeatureDefinitions)
 
         val options = runtime.resolvedExperienceOptions("customer")
 
@@ -122,7 +141,7 @@ class AppRuntimeTest {
 
     @Test
     fun productRuntimeRejectsUnsupportedExperiences() {
-        val runtime = createProductRuntime(ProductId.AppOneStandalone)
+        val runtime = createProductRuntime(ProductId.AppOneStandalone, featureDefinitions = testFeatureDefinitions)
 
         assertFailsWith<UnsupportedExperienceException> {
             runtime.appRuntimeFor(ExperienceId.NewportBuckhead)
@@ -148,7 +167,7 @@ class AppRuntimeTest {
     @Test
     fun featureAvailabilityIsTableDriven() {
         val catalog = AppCatalog(defaultAppDefinitions())
-        val registry = FeatureRegistry()
+        val registry = FeatureRegistry(testFeatureDefinitions)
         val cases = listOf(
             Triple(AppId.AppOne, "customer", listOf("orders", "catalog", "product-details", "delivery")),
             Triple(AppId.AppOne, "driver", listOf("delivery")),
@@ -169,7 +188,7 @@ class AppRuntimeTest {
         val analytics = ConsoleAnalyticsClient()
         val session = AppSession(
             authRepository = LocalAuthRepository(catalog),
-            featureRegistry = FeatureRegistry(),
+            featureRegistry = FeatureRegistry(testFeatureDefinitions),
             deliveryPolicyResolver = DeliveryPolicyResolver(),
             deliveryRepository = SampleDeliveryRepository(),
             analyticsClient = analytics,

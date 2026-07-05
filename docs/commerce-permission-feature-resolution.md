@@ -208,7 +208,7 @@ features.filter { it.id in context.supportedFeatures && it.isAvailable(context) 
 
 That means a user can have `catalog.view`, but Catalog still stays hidden when the selected experience does not support the Catalog feature.
 
-## Product Feature Bundling Simulation
+## Product Feature Bundling
 
 Product build metadata is centralized in:
 
@@ -236,13 +236,17 @@ Regenerate the Swift constants with:
 | `AppTwoStandalone` | Orders, Lists, Delivery |
 | `SuperApp` | Orders, Lists, Catalog, Product Details, Delivery |
 
-This is the shared-code simulation of product-specific bundling:
+Android and iOS now use this as true physical bundling:
 
-- Android product flavors could include only feature modules from this union.
-- iOS targets or KMP framework variants could link only feature packages from this union.
+- `shared:application` no longer imports Orders, Lists, Catalog, or Product Details.
+- Each Android flavor has a `ProductFeatureBundle` source file that imports only the feature modules compiled into that flavor.
+- `androidApp/build.gradle.kts` attaches feature module dependencies to `appOneImplementation`, `appTwoImplementation`, or `superAppImplementation`.
+- The iOS KMP framework build accepts `-PiosProductBundle=appOne|appTwo|superApp`.
+- `shared/application/build.gradle.kts` uses that property to attach only the selected iOS feature module dependencies and generate the matching `platformFeatureDefinitions()` implementation.
+- Each Xcode target passes its product bundle into `:shared:application:embedAndSignAppleFrameworkForXcode`, so `SharedLogic.framework` is compiled differently for AppOne, AppTwo, and SuperApp.
 - Runtime still filters by the selected experience and the resolved permission set.
 
-The login screens display the build feature union from platform build metadata so the simulated package contents are visible while testing.
+The login screens display the build feature union from platform build metadata so the package contents are visible while testing.
 
 The coarse feature ids also map to concrete KMP modules in `config/product-feature-bundles.json`:
 
@@ -254,7 +258,7 @@ The coarse feature ids also map to concrete KMP modules in `config/product-featu
 | `product-details` | `:shared:features:productdetails` |
 | `delivery` | `:shared:features:delivery` |
 
-For this simulation the application module still links all dummy feature modules so one local build can exercise every path. Orders, Lists, Catalog, Product Details, and Delivery now own their own `FeatureDefinitionSpec`, while `FeatureRegistry` only registers module definitions and applies the common intersection rule.
+Delivery is still linked through `shared:application` because the sample `AppSession` owns delivery policies and repository calls there. Since every current product bundles Delivery, that does not weaken the current product split. If a future product excludes Delivery, the delivery policy/repository code should be split from the delivery feature module before that product is added.
 
 ## Action Resolution
 

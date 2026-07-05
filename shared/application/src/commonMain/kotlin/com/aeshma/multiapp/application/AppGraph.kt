@@ -7,6 +7,7 @@ import com.aeshma.multiapp.core.config.AuthRepository
 import com.aeshma.multiapp.core.config.LocalAuthRepository
 import com.aeshma.multiapp.core.config.defaultAppDefinitions
 import com.aeshma.multiapp.core.model.AppId
+import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.feature.delivery.DeliveryPolicyResolver
 import com.aeshma.multiapp.feature.delivery.DeliveryRepository
 import com.aeshma.multiapp.feature.delivery.SampleDeliveryRepository
@@ -18,6 +19,7 @@ import dev.zacsweers.metro.createGraphFactory
 interface AppGraph {
     val appId: AppId
     val appCatalog: AppCatalog
+    val featureDefinitions: List<FeatureDefinitionSpec>
     val session: AppSession
 
     @Provides
@@ -28,7 +30,8 @@ interface AppGraph {
     fun provideAnalyticsClient(): AnalyticsClient = ConsoleAnalyticsClient()
 
     @Provides
-    fun provideFeatureRegistry(): FeatureRegistry = FeatureRegistry()
+    fun provideFeatureRegistry(featureDefinitions: List<FeatureDefinitionSpec>): FeatureRegistry =
+        FeatureRegistry(featureDefinitions)
 
     @Provides
     fun provideDeliveryPolicyResolver(): DeliveryPolicyResolver = DeliveryPolicyResolver()
@@ -56,6 +59,7 @@ interface AppGraph {
         fun create(
             @Provides appId: AppId,
             @Provides appCatalog: AppCatalog,
+            @Provides featureDefinitions: List<FeatureDefinitionSpec>,
         ): AppGraph
     }
 }
@@ -69,5 +73,6 @@ class AppRuntime internal constructor(graph: AppGraph) {
 fun createAppRuntime(
     appId: AppId,
     appCatalog: AppCatalog = AppCatalog(defaultAppDefinitions()),
+    featureDefinitions: List<FeatureDefinitionSpec> = emptyList(),
 ): AppRuntime =
-    AppRuntime(createGraphFactory<AppGraph.Factory>().create(appId, appCatalog))
+    AppRuntime(createGraphFactory<AppGraph.Factory>().create(appId, appCatalog, featureDefinitions))

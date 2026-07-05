@@ -30,7 +30,10 @@ data class SharedResolvedExperienceOption(
 )
 
 class IOSProductCompositionRoot(productIdName: String) {
-    private val runtime = createProductRuntime(ProductId.fromExternalName(productIdName))
+    private val runtime = createProductRuntime(
+        productId = ProductId.fromExternalName(productIdName),
+        featureDefinitions = platformFeatureDefinitions(),
+    )
     private val snapshotMapper = SessionSnapshotMapper()
 
     val productName: String = runtime.productDefinition.displayName

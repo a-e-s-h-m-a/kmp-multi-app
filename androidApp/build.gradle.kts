@@ -82,3 +82,20 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 }
+
+dependencies {
+    add("appOneImplementation", projects.shared.features.orders)
+    add("appOneImplementation", projects.shared.features.catalog)
+    add("appOneImplementation", projects.shared.features.productdetails)
+    add("appOneImplementation", projects.shared.features.delivery)
+
+    add("appTwoImplementation", projects.shared.features.orders)
+    add("appTwoImplementation", projects.shared.features.lists)
+    add("appTwoImplementation", projects.shared.features.delivery)
+
+    add("superAppImplementation", projects.shared.features.orders)
+    add("superAppImplementation", projects.shared.features.lists)
+    add("superAppImplementation", projects.shared.features.catalog)
+    add("superAppImplementation", projects.shared.features.productdetails)
+    add("superAppImplementation", projects.shared.features.delivery)
+}
