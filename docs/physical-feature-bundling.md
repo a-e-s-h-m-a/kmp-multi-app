@@ -66,7 +66,16 @@ The same file also maps feature ids to Gradle modules:
 }
 ```
 
-That config is still used for build metadata and display. The actual compile-time selection is expressed in Gradle source sets and product/flavor source files.
+It also maps feature ids to the Kotlin feature object that should be imported by generated bundle source:
+
+```json
+{
+  "orders": "com.aeshma.multiapp.feature.orders.OrdersFeature",
+  "delivery": "com.aeshma.multiapp.feature.delivery.DeliveryFeature"
+}
+```
+
+That config is used for build metadata, display, generated feature bundle source, and selected platform dependencies.
 
 ## Feature Module Shape
 
@@ -136,24 +145,22 @@ flowchart LR
 
 ## Android Mechanism
 
-Android uses product flavors plus flavor-specific dependencies.
+Android uses product flavors plus generated flavor-specific dependencies.
 
-In `androidApp/build.gradle.kts`, each flavor receives only its modules:
+In `androidApp/build.gradle.kts`, each flavor receives only the modules listed in `config/product-feature-bundles.json`:
 
 ```kotlin
 dependencies {
-    add("appOneImplementation", projects.shared.features.orders)
-    add("appOneImplementation", projects.shared.features.catalog)
-    add("appOneImplementation", projects.shared.features.productdetails)
-    add("appOneImplementation", projects.shared.features.delivery)
-
-    add("appTwoImplementation", projects.shared.features.orders)
-    add("appTwoImplementation", projects.shared.features.lists)
-    add("appTwoImplementation", projects.shared.features.delivery)
+    productBuildConfigs.forEach { product ->
+        val configurationName = "${product.getValue("flavorName")}Implementation"
+        productFeatures(product).forEach { featureId ->
+            add(configurationName, project(featureModulePaths.getValue(featureId)))
+        }
+    }
 }
 ```
 
-Each flavor also has a Kotlin source file that imports only its compiled modules:
+Each Android variant also gets a generated Kotlin source file that imports only its compiled modules:
 
 ```kotlin
 object ProductFeatureBundle {
@@ -182,12 +189,12 @@ Android compile flow:
 flowchart TD
     A["appOneDebug variant"] --> B["appOneImplementation deps"]
     B --> C["Orders/Catalog/ProductDetails/Delivery modules"]
-    C --> D["androidApp/src/appOne/.../ProductFeatureBundle.kt"]
+    C --> D["Generated appOne ProductFeatureBundle.kt"]
     D --> E["ProductApp(featureDefinitions)"]
 
     F["appTwoDebug variant"] --> G["appTwoImplementation deps"]
     G --> H["Orders/Lists/Delivery modules"]
-    H --> I["androidApp/src/appTwo/.../ProductFeatureBundle.kt"]
+    H --> I["Generated appTwo ProductFeatureBundle.kt"]
     I --> J["ProductApp(featureDefinitions)"]
 ```
 
@@ -212,24 +219,21 @@ Each Xcode target passes a Gradle property:
 ./gradlew -PiosProductBundle=superApp :shared:application:embedAndSignAppleFrameworkForXcode
 ```
 
-`shared/application/build.gradle.kts` maps that property to feature ids:
+`shared/application/build.gradle.kts` maps that property to feature ids from `config/product-feature-bundles.json`:
 
 ```kotlin
-val iosFeatureBundles = mapOf(
-    "appOne" to listOf("orders", "catalog", "productdetails", "delivery"),
-    "appTwo" to listOf("orders", "lists", "delivery"),
-    "superApp" to listOf("orders", "lists", "catalog", "productdetails", "delivery"),
-)
+val iosFeatureBundles = productBuildConfigs.associate { product ->
+    product.getValue("swiftName").toString() to productFeatures(product)
+}
 ```
 
-Then it conditionally attaches iOS dependencies:
+Then it attaches selected iOS dependencies:
 
 ```kotlin
 iosMain.dependencies {
-    if ("orders" in selectedIosFeatures) api(projects.shared.features.orders)
-    if ("lists" in selectedIosFeatures) api(projects.shared.features.lists)
-    if ("catalog" in selectedIosFeatures) api(projects.shared.features.catalog)
-    if ("productdetails" in selectedIosFeatures) api(projects.shared.features.productdetails)
+    selectedIosFeatures.forEach { featureId ->
+        api(project(featureModulePaths.getValue(featureId)))
+    }
 }
 ```
 
@@ -449,12 +453,9 @@ Both should report no matching dependency.
 ## Adding A New Product
 
 1. Add the product metadata in `config/product-feature-bundles.json`.
-2. Add an Android flavor in `androidApp/build.gradle.kts`.
-3. Add flavor-specific `...Implementation` dependencies for only the modules in that product.
-4. Add `androidApp/src/<flavor>/kotlin/.../ProductFeatureBundle.kt`.
-5. Add an iOS bundle entry in `iosFeatureBundles` inside `shared/application/build.gradle.kts`.
-6. Update the Xcode target script to pass `-PiosProductBundle=<bundleName>`.
-7. Add a native Swift feature registry file for the app target.
-8. Update Xcode synchronized folder exceptions so unused `SharedIOS/Features/*` folders are not target members.
-9. Add or update SwiftPM product-level libraries in `iosApp/Package.swift`.
-10. Run compile and dependency-insight checks to prove excluded modules are absent.
+2. Add an Android flavor only if this is a new Android product flavor. Dependencies and `ProductFeatureBundle.kt` are generated from the JSON.
+3. Update the Xcode target script to pass `-PiosProductBundle=<bundleName>`. The KMP iOS feature set is generated from the JSON.
+4. Add a native Swift feature registry file for the app target.
+5. Update Xcode synchronized folder exceptions so unused `SharedIOS/Features/*` folders are not target members.
+6. Add or update SwiftPM product-level libraries in `iosApp/Package.swift`.
+7. Run compile and dependency-insight checks to prove excluded modules are absent.

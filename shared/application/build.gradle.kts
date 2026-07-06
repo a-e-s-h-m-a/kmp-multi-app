@@ -1,6 +1,8 @@
+import groovy.json.JsonSlurper
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
@@ -8,45 +10,34 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 abstract class GenerateIosProductFeatureDefinitions : DefaultTask() {
     @get:Input
-    abstract val selectedFeatures: ListProperty<String>
+    abstract val featureIds: ListProperty<String>
+
+    @get:Input
+    abstract val featureKotlinObjects: MapProperty<String, String>
 
     @get:OutputDirectory
     abstract val outputDir: DirectoryProperty
 
     @TaskAction
     fun generate() {
-        val features = selectedFeatures.get()
-        val file = outputDir.get().file(
-            "com/aeshma/multiapp/application/PlatformFeatureDefinitions.ios.kt",
-        ).asFile
-        file.parentFile.mkdirs()
-
+        val selectedFeatures = featureIds.get()
+        val objectsByFeature = featureKotlinObjects.get()
+        val selectedObjects = selectedFeatures.map { objectsByFeature.getValue(it) }
+        val selectedObjectNames = selectedObjects.map { it.substringAfterLast(".") }
         val imports = buildList {
             add("import com.aeshma.multiapp.core.model.FeatureDefinitionSpec")
             add("import com.aeshma.multiapp.core.model.FeatureRuntimeContributor")
-            if ("orders" in features) add("import com.aeshma.multiapp.feature.orders.OrdersFeature")
-            if ("lists" in features) add("import com.aeshma.multiapp.feature.lists.ListsFeature")
-            if ("catalog" in features) add("import com.aeshma.multiapp.feature.catalog.CatalogFeature")
-            if ("productdetails" in features) add("import com.aeshma.multiapp.feature.productdetails.ProductDetailsFeature")
-            if ("delivery" in features) add("import com.aeshma.multiapp.feature.delivery.DeliveryFeature")
+            selectedObjects.sorted().forEach { add("import $it") }
         }.joinToString("\n")
+        val definitions = selectedObjectNames
+            .joinToString(",\n    ") { "$it.definition" }
+        val contributors = selectedObjectNames
+            .joinToString(",\n    ") { "$it.runtimeContributor" }
+        val file = outputDir.get().file(
+            "com/aeshma/multiapp/application/PlatformFeatureDefinitions.ios.kt",
+        ).asFile
 
-        val definitions = buildList {
-            if ("orders" in features) add("OrdersFeature.definition")
-            if ("lists" in features) add("ListsFeature.definition")
-            if ("catalog" in features) add("CatalogFeature.definition")
-            if ("productdetails" in features) add("ProductDetailsFeature.definition")
-            if ("delivery" in features) add("DeliveryFeature.definition")
-        }.joinToString(",\n    ")
-
-        val contributors = buildList {
-            if ("orders" in features) add("OrdersFeature.runtimeContributor")
-            if ("lists" in features) add("ListsFeature.runtimeContributor")
-            if ("catalog" in features) add("CatalogFeature.runtimeContributor")
-            if ("productdetails" in features) add("ProductDetailsFeature.runtimeContributor")
-            if ("delivery" in features) add("DeliveryFeature.runtimeContributor")
-        }.joinToString(",\n    ")
-
+        file.parentFile.mkdirs()
         file.writeText(
             """
             package com.aeshma.multiapp.application
@@ -65,6 +56,38 @@ abstract class GenerateIosProductFeatureDefinitions : DefaultTask() {
     }
 }
 
+@Suppress("UNCHECKED_CAST")
+val productFeatureBundleConfig = JsonSlurper().parse(
+    rootProject.file("config/product-feature-bundles.json"),
+) as Map<String, Any>
+
+@Suppress("UNCHECKED_CAST")
+val featureModulePaths = productFeatureBundleConfig["featureModules"] as Map<String, String>
+
+@Suppress("UNCHECKED_CAST")
+val productBuildConfigs = productFeatureBundleConfig["products"] as List<Map<String, Any>>
+
+@Suppress("UNCHECKED_CAST")
+val featureKotlinObjectRefs = productFeatureBundleConfig["featureKotlinObjects"] as Map<String, String>
+
+fun productFeatures(product: Map<String, Any>): List<String> =
+    (product["bundledFeatures"] as List<*>).map { it.toString() }
+
+fun validateFeatureBundleConfig() {
+    val allProductFeatures = productBuildConfigs.flatMap(::productFeatures).distinct()
+    val missingModulePaths = allProductFeatures.filterNot(featureModulePaths::containsKey)
+    require(missingModulePaths.isEmpty()) {
+        "Missing featureModules entries for ${missingModulePaths.joinToString()}."
+    }
+
+    val missingKotlinObjects = allProductFeatures.filterNot(featureKotlinObjectRefs::containsKey)
+    require(missingKotlinObjects.isEmpty()) {
+        "Missing featureKotlinObjects entries for ${missingKotlinObjects.joinToString()}."
+    }
+}
+
+validateFeatureBundleConfig()
+
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.androidMultiplatformLibrary)
@@ -73,11 +96,9 @@ plugins {
 }
 
 val iosProductBundle = providers.gradleProperty("iosProductBundle").orElse("superApp")
-val iosFeatureBundles = mapOf(
-    "appOne" to listOf("orders", "catalog", "productdetails", "delivery"),
-    "appTwo" to listOf("orders", "lists", "delivery"),
-    "superApp" to listOf("orders", "lists", "catalog", "productdetails", "delivery"),
-)
+val iosFeatureBundles = productBuildConfigs.associate { product ->
+    product.getValue("swiftName").toString() to productFeatures(product)
+}
 val selectedIosFeatures = iosFeatureBundles[iosProductBundle.get()]
     ?: error("Unknown iosProductBundle '${iosProductBundle.get()}'. Expected one of ${iosFeatureBundles.keys}.")
 val generatedIosFeatureDefinitionsDir = layout.buildDirectory.dir(
@@ -85,7 +106,9 @@ val generatedIosFeatureDefinitionsDir = layout.buildDirectory.dir(
 )
 
 val generateIosProductFeatureDefinitions by tasks.registering(GenerateIosProductFeatureDefinitions::class) {
-    selectedFeatures.set(selectedIosFeatures)
+    inputs.file(rootProject.file("config/product-feature-bundles.json"))
+    featureIds.set(selectedIosFeatures)
+    featureKotlinObjects.set(featureKotlinObjectRefs)
     outputDir.set(generatedIosFeatureDefinitionsDir)
 }
 
@@ -117,19 +140,15 @@ kotlin {
             kotlin.srcDir(generatedIosFeatureDefinitionsDir)
         }
         iosMain.dependencies {
-            if ("orders" in selectedIosFeatures) api(projects.shared.features.orders)
-            if ("lists" in selectedIosFeatures) api(projects.shared.features.lists)
-            if ("catalog" in selectedIosFeatures) api(projects.shared.features.catalog)
-            if ("productdetails" in selectedIosFeatures) api(projects.shared.features.productdetails)
-            if ("delivery" in selectedIosFeatures) api(projects.shared.features.delivery)
+            selectedIosFeatures.forEach { featureId ->
+                api(project(featureModulePaths.getValue(featureId)))
+            }
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-            implementation(projects.shared.features.orders)
-            implementation(projects.shared.features.lists)
-            implementation(projects.shared.features.catalog)
-            implementation(projects.shared.features.productdetails)
-            implementation(projects.shared.features.delivery)
+            featureModulePaths.values.distinct().forEach { featureModulePath ->
+                implementation(project(featureModulePath))
+            }
         }
     }
 }

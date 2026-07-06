@@ -6,6 +6,13 @@
     "product-details": ":shared:features:productdetails",
     "delivery": ":shared:features:delivery"
   },
+  "featureKotlinObjects": {
+    "orders": "com.aeshma.multiapp.feature.orders.OrdersFeature",
+    "lists": "com.aeshma.multiapp.feature.lists.ListsFeature",
+    "catalog": "com.aeshma.multiapp.feature.catalog.CatalogFeature",
+    "product-details": "com.aeshma.multiapp.feature.productdetails.ProductDetailsFeature",
+    "delivery": "com.aeshma.multiapp.feature.delivery.DeliveryFeature"
+  },
   "products": [
     {
       "flavorName": "appOne",
