@@ -504,7 +504,7 @@ Use the same logins:
 | AppTwo | `user` or `customer` | Newport&Buckhead features as bottom tabs. |
 | SuperApp | `admin` | CABL multi-experience switcher, then tabs for selected experience. |
 
-If generated iOS constants are stale, run:
+If generated iOS constants or feature registries are stale, run:
 
 ```bash
 ./gradlew generateIOSProductFeatureBundles

@@ -216,13 +216,13 @@ Product build metadata is centralized in:
 config/product-feature-bundles.json
 ```
 
-Android flavors read this config in `androidApp/build.gradle.kts`. iOS constants are generated from the same config into:
+Android flavors read this config in `androidApp/build.gradle.kts`. iOS constants and native feature registries are generated from the same config into:
 
 ```text
 iosApp/SharedIOS/Core/ProductFeatureBundles.generated.swift
 ```
 
-Regenerate the Swift constants with:
+Regenerate the Swift constants and registries with:
 
 ```bash
 ./gradlew generateIOSProductFeatureBundles

@@ -13,10 +13,44 @@
     "product-details": "com.aeshma.multiapp.feature.productdetails.ProductDetailsFeature",
     "delivery": "com.aeshma.multiapp.feature.delivery.DeliveryFeature"
   },
+  "featureSwiftTargets": {
+    "orders": {
+      "libraryName": "FeatureOrders",
+      "targetName": "FeatureOrders",
+      "moduleName": "OrdersFeatureModule",
+      "path": "SharedIOS/Features/Orders"
+    },
+    "lists": {
+      "libraryName": "FeatureLists",
+      "targetName": "FeatureLists",
+      "moduleName": "ListsFeatureModule",
+      "path": "SharedIOS/Features/Lists"
+    },
+    "catalog": {
+      "libraryName": "FeatureCatalog",
+      "targetName": "FeatureCatalog",
+      "moduleName": "CatalogFeatureModule",
+      "path": "SharedIOS/Features/Catalog"
+    },
+    "product-details": {
+      "libraryName": "FeatureProductDetails",
+      "targetName": "FeatureProductDetails",
+      "moduleName": "ProductDetailsFeatureModule",
+      "path": "SharedIOS/Features/ProductDetails"
+    },
+    "delivery": {
+      "libraryName": "FeatureDelivery",
+      "targetName": "FeatureDelivery",
+      "moduleName": "DeliveryFeatureModule",
+      "path": "SharedIOS/Features/Delivery"
+    }
+  },
   "products": [
     {
       "flavorName": "appOne",
       "swiftName": "appOne",
+      "iosFeatureProductName": "AppOneIOSFeatures",
+      "iosFeatureRegistryFile": "AppOne/AppOneFeatureRegistry.swift",
       "productId": "AppOneStandalone",
       "displayName": "AppOne",
       "androidApplicationId": "com.aeshma.appone",
@@ -26,6 +60,8 @@
     {
       "flavorName": "appTwo",
       "swiftName": "appTwo",
+      "iosFeatureProductName": "AppTwoIOSFeatures",
+      "iosFeatureRegistryFile": "AppTwo/AppTwoFeatureRegistry.swift",
       "productId": "AppTwoStandalone",
       "displayName": "AppTwo",
       "androidApplicationId": "com.aeshma.apptwo",
@@ -35,6 +71,8 @@
     {
       "flavorName": "superApp",
       "swiftName": "superApp",
+      "iosFeatureProductName": "SuperAppIOSFeatures",
+      "iosFeatureRegistryFile": "AppSuper/SuperAppFeatureRegistry.swift",
       "productId": "SuperApp",
       "displayName": "Super App",
       "androidApplicationId": "com.aeshma.superapp",

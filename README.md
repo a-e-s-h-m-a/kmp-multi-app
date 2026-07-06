@@ -134,7 +134,7 @@ Build product metadata is centralized in:
 config/product-feature-bundles.json
 ```
 
-Android flavors are generated from this config in `androidApp/build.gradle.kts`. The same config generates `iosApp/SharedIOS/ProductFeatureBundles.generated.swift` through:
+Android flavors are generated from this config in `androidApp/build.gradle.kts`. The same config drives KMP iOS bundle selection, SwiftPM product membership in `iosApp/Package.swift`, and generated native iOS bundle/registry files through:
 
 ```bash
 ./gradlew generateIOSProductFeatureBundles
@@ -233,7 +233,7 @@ xcodebuild \
 |---|---|
 | Product definitions | `shared/core/config/.../ProductCatalog.kt`, `ProductDefinition.kt` |
 | Build feature bundle config | `config/product-feature-bundles.json` |
-| iOS generated bundle constants | `iosApp/SharedIOS/ProductFeatureBundles.generated.swift` |
+| iOS generated bundle constants | `iosApp/SharedIOS/Core/ProductFeatureBundles.generated.swift` |
 | Experience and BU config | `shared/core/config/.../ExperienceCatalog.kt`, `ExperienceDefinition.kt` |
 | Hardcoded login grants | `shared/core/config/.../HardcodedLoginConfig.kt` |
 | Product resolver | `shared/application/.../ProductRuntime.kt` |
