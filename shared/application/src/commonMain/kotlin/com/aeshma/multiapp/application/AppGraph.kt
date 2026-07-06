@@ -8,9 +8,7 @@ import com.aeshma.multiapp.core.config.LocalAuthRepository
 import com.aeshma.multiapp.core.config.defaultAppDefinitions
 import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
-import com.aeshma.multiapp.feature.delivery.DeliveryPolicyResolver
-import com.aeshma.multiapp.feature.delivery.DeliveryRepository
-import com.aeshma.multiapp.feature.delivery.SampleDeliveryRepository
+import com.aeshma.multiapp.core.model.FeatureRuntimeContributor
 import dev.zacsweers.metro.DependencyGraph
 import dev.zacsweers.metro.Provides
 import dev.zacsweers.metro.createGraphFactory
@@ -20,6 +18,7 @@ interface AppGraph {
     val appId: AppId
     val appCatalog: AppCatalog
     val featureDefinitions: List<FeatureDefinitionSpec>
+    val featureRuntimeContributors: List<FeatureRuntimeContributor>
     val session: AppSession
 
     @Provides
@@ -34,23 +33,15 @@ interface AppGraph {
         FeatureRegistry(featureDefinitions)
 
     @Provides
-    fun provideDeliveryPolicyResolver(): DeliveryPolicyResolver = DeliveryPolicyResolver()
-
-    @Provides
-    fun provideDeliveryRepository(): DeliveryRepository = SampleDeliveryRepository()
-
-    @Provides
     fun provideAppSession(
         authRepository: AuthRepository,
         featureRegistry: FeatureRegistry,
-        deliveryPolicyResolver: DeliveryPolicyResolver,
-        deliveryRepository: DeliveryRepository,
+        featureRuntimeContributors: List<FeatureRuntimeContributor>,
         analyticsClient: AnalyticsClient,
     ): AppSession = AppSession(
         authRepository = authRepository,
         featureRegistry = featureRegistry,
-        deliveryPolicyResolver = deliveryPolicyResolver,
-        deliveryRepository = deliveryRepository,
+        featureRuntimeContributors = featureRuntimeContributors,
         analyticsClient = analyticsClient,
     )
 
@@ -60,6 +51,7 @@ interface AppGraph {
             @Provides appId: AppId,
             @Provides appCatalog: AppCatalog,
             @Provides featureDefinitions: List<FeatureDefinitionSpec>,
+            @Provides featureRuntimeContributors: List<FeatureRuntimeContributor>,
         ): AppGraph
     }
 }
@@ -74,5 +66,13 @@ fun createAppRuntime(
     appId: AppId,
     appCatalog: AppCatalog = AppCatalog(defaultAppDefinitions()),
     featureDefinitions: List<FeatureDefinitionSpec> = emptyList(),
+    featureRuntimeContributors: List<FeatureRuntimeContributor> = emptyList(),
 ): AppRuntime =
-    AppRuntime(createGraphFactory<AppGraph.Factory>().create(appId, appCatalog, featureDefinitions))
+    AppRuntime(
+        createGraphFactory<AppGraph.Factory>().create(
+            appId,
+            appCatalog,
+            featureDefinitions,
+            featureRuntimeContributors,
+        ),
+    )

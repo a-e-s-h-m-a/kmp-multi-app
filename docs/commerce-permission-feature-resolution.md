@@ -258,8 +258,6 @@ The coarse feature ids also map to concrete KMP modules in `config/product-featu
 | `product-details` | `:shared:features:productdetails` |
 | `delivery` | `:shared:features:delivery` |
 
-Delivery is still linked through `shared:application` because the sample `AppSession` owns delivery policies and repository calls there. Since every current product bundles Delivery, that does not weaken the current product split. If a future product excludes Delivery, the delivery policy/repository code should be split from the delivery feature module before that product is added.
-
 ## Action Resolution
 
 Non-delivery feature detail screens use structured action tables from their feature modules. Each action declares:
@@ -270,7 +268,9 @@ Non-delivery feature detail screens use structured action tables from their feat
 
 The UI filters allowed actions from the resolved capability set.
 
-Delivery actions are policy-driven because order status changes affect the next available actions. `DeliveryPolicyResolver` reads `context.capabilities.delivery` and returns a policy:
+Delivery actions are policy-driven because order status changes affect the next available actions. The policy/repository code now lives behind `DeliveryFeature.runtimeContributor`, so `shared:application` does not import delivery domain classes.
+
+`DeliveryPolicyResolver` reads `context.capabilities.delivery` and returns a policy:
 
 - customer
 - driver
@@ -279,7 +279,7 @@ Delivery actions are policy-driven because order status changes affect the next 
 - read-only
 - disabled
 
-The selected policy calculates actions per order state.
+The selected policy calculates actions per order state and exposes them as generic `FeatureRuntimeSnapshot` data for Android, iOS, and snapshot mapping.
 
 ## Theme Resolution
 

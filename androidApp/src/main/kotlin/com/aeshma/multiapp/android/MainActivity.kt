@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
                 productId = ProductId.fromExternalName(BuildConfig.PRODUCT_ID),
                 buildFeatureBundle = BuildConfig.BUNDLED_FEATURES.toFeatureIds(),
                 featureDefinitions = ProductFeatureBundle.featureDefinitions,
+                featureRuntimeContributors = ProductFeatureBundle.featureRuntimeContributors,
             )
         }
     }

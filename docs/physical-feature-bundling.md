@@ -371,19 +371,41 @@ flowchart TD
     E -->|No| G["Hide feature"]
 ```
 
-## Delivery Caveat
+## Stateful Feature Runtime Contributors
 
-Delivery is still linked from `shared:application` because `AppSession` directly owns delivery repository and policy APIs:
+Some features need runtime domain data in addition to their static `FeatureDefinitionSpec`. Delivery is the current example because order status changes affect the next available actions.
+
+The shared contract lives in `shared/core/model`:
 
 ```kotlin
-fun deliveryPolicy(): DeliveryPolicy =
-    deliveryPolicyResolver.resolve(requireContext())
+interface CommerceFeatureModule {
+    val definition: FeatureDefinitionSpec
+    val runtimeContributor: FeatureRuntimeContributor?
+        get() = null
+}
 
-fun deliveryOrders(): List<DeliveryOrder> =
-    deliveryRepository.orders()
+interface FeatureRuntimeContributor {
+    val featureId: FeatureId
+    fun snapshot(context: AppContext): FeatureRuntimeSnapshot
+}
 ```
 
-Every current product bundles Delivery, so this does not weaken the current product split. If a future product excludes Delivery, split delivery policy/repository access behind a smaller shared abstraction or move delivery-specific session APIs into the delivery feature module.
+Delivery owns its policy resolver, repository, and status transition mapping inside `DeliveryFeature.runtimeContributor`. Product bundles pass runtime contributors alongside feature definitions:
+
+```kotlin
+val featureRuntimeContributors = listOfNotNull(
+    OrdersFeature.runtimeContributor,
+    DeliveryFeature.runtimeContributor,
+)
+```
+
+`AppSession` only sees the generic contributor list:
+
+```kotlin
+fun featureRuntimeSnapshot(featureId: FeatureId): FeatureRuntimeSnapshot?
+```
+
+That keeps `shared:application` independent from delivery domain classes. If a future product excludes Delivery, it omits both `DeliveryFeature.definition` and `DeliveryFeature.runtimeContributor`, and the Delivery module is not needed by that product.
 
 ## Verification Commands
 

@@ -272,9 +272,9 @@ If the login does not resolve `lists.edit`, the Rename action is not shown.
 
 When an allowed action is tapped, the UI updates local demo state with the action result string. This proves the action pipeline works without requiring a backend.
 
-## Delivery Is Special
+## Stateful Feature Runtime
 
-Delivery still uses the generic feature definition for permission rows and UI blocks, but its actions are stateful.
+Delivery still uses the generic feature definition for permission rows and UI blocks, but its actions are stateful. The stateful part is owned by the Delivery feature module through `DeliveryFeature.runtimeContributor`, not by `AppSession`.
 
 Delivery action availability comes from:
 
@@ -283,6 +283,7 @@ DeliveryPolicyResolver
   -> reads context.capabilities.delivery
   -> selects customer/driver/admin/merchant/read-only policy
   -> calculates allowed actions for each order state
+  -> returns generic FeatureRuntimeSnapshot data
 ```
 
 Example:

@@ -48,11 +48,11 @@ import com.aeshma.multiapp.core.model.AppContext
 import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
+import com.aeshma.multiapp.core.model.FeatureRuntimeContributor
+import com.aeshma.multiapp.core.model.FeatureRuntimeItem
+import com.aeshma.multiapp.core.model.FeatureRuntimeSnapshot
 import com.aeshma.multiapp.core.model.PermissionId
 import com.aeshma.multiapp.core.model.ProductId
-import com.aeshma.multiapp.feature.delivery.DeliveryAction
-import com.aeshma.multiapp.feature.delivery.DeliveryOrder
-import com.aeshma.multiapp.feature.delivery.DeliveryStatus
 import kotlinx.coroutines.launch
 
 private sealed interface Screen {
@@ -99,9 +99,14 @@ fun ProductApp(
     productId: ProductId = ProductId.AppOneStandalone,
     buildFeatureBundle: Set<FeatureId>? = null,
     featureDefinitions: List<FeatureDefinitionSpec> = emptyList(),
+    featureRuntimeContributors: List<FeatureRuntimeContributor> = emptyList(),
 ) {
-    val productRuntime = remember(productId, featureDefinitions) {
-        createProductRuntime(productId, featureDefinitions = featureDefinitions)
+    val productRuntime = remember(productId, featureDefinitions, featureRuntimeContributors) {
+        createProductRuntime(
+            productId,
+            featureDefinitions = featureDefinitions,
+            featureRuntimeContributors = featureRuntimeContributors,
+        )
     }
     val packagedFeatures = remember(productRuntime, buildFeatureBundle) {
         buildFeatureBundle ?: productRuntime.bundledFeatures
@@ -529,12 +534,11 @@ private fun FeatureTabContent(
     context: AppContext,
     modifier: Modifier = Modifier,
 ) {
-    if (feature.id == FeatureId.Delivery) {
-        DeliveryView(
-            policyName = session.deliveryPolicy().experienceName,
+    val runtimeSnapshot = session.featureRuntimeSnapshot(feature.id)
+    if (runtimeSnapshot != null) {
+        RuntimeFeatureView(
+            runtimeSnapshot = runtimeSnapshot,
             feature = feature,
-            orders = session.deliveryOrders(),
-            actionsForOrder = session.deliveryPolicy()::availableActions,
             context = context,
             modifier = modifier,
         )
@@ -611,17 +615,15 @@ private fun FeatureScreen(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         OutlinedButton(onClick = onBack) { Text("Back") }
-        if (featureId == FeatureId.Delivery) {
-            val feature = session.availableFeatures().firstOrNull { it.id == featureId }
-            DeliveryView(
-                policyName = session.deliveryPolicy().experienceName,
+        val feature = session.availableFeatures().firstOrNull { it.id == featureId }
+        val runtimeSnapshot = session.featureRuntimeSnapshot(featureId)
+        if (runtimeSnapshot != null) {
+            RuntimeFeatureView(
+                runtimeSnapshot = runtimeSnapshot,
                 feature = feature,
-                orders = session.deliveryOrders(),
-                actionsForOrder = session.deliveryPolicy()::availableActions,
                 context = context,
             )
         } else {
-            val feature = session.availableFeatures().firstOrNull { it.id == featureId }
             if (feature == null) {
                 SimpleFeatureView("Unavailable", "Unknown feature: ${featureId.value}")
             } else {
@@ -719,16 +721,16 @@ private fun CapabilityPanel(title: String, body: String) {
 
 @Composable
 @OptIn(ExperimentalLayoutApi::class)
-private fun DeliveryView(
-    policyName: String,
+private fun RuntimeFeatureView(
+    runtimeSnapshot: FeatureRuntimeSnapshot,
     feature: FeatureDescriptor?,
-    orders: List<DeliveryOrder>,
-    actionsForOrder: (DeliveryOrder) -> List<DeliveryAction>,
     context: AppContext,
     modifier: Modifier = Modifier,
 ) {
-    var orderStatuses by remember(orders) { mutableStateOf(orders.associate { it.id to it.status }) }
-    var lastActionResult by remember(orders) { mutableStateOf("No action has been triggered yet.") }
+    var itemStatuses by remember(runtimeSnapshot) {
+        mutableStateOf(runtimeSnapshot.items.associate { it.id to it.status })
+    }
+    var lastActionResult by remember(runtimeSnapshot) { mutableStateOf("No action has been triggered yet.") }
     val visibleBlocks = feature?.uiBlocks.orEmpty().filter { context.hasPermission(it.requiredPermission) }
     val hiddenBlockCount = feature?.uiBlocks.orEmpty().size - visibleBlocks.size
 
@@ -738,7 +740,7 @@ private fun DeliveryView(
         contentPadding = PaddingValues(bottom = 24.dp),
     ) {
         item {
-            Text(policyName, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+            Text(runtimeSnapshot.title, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
             feature?.permissionRows.orEmpty().forEach { row ->
                 CommercePermissionLine(row.label, context.hasPermission(row.permission))
             }
@@ -759,31 +761,35 @@ private fun DeliveryView(
         items(visibleBlocks, key = { it.title }) { block ->
             CapabilityPanel(title = block.title, body = block.body)
         }
-        items(orders, key = DeliveryOrder::id) { order ->
-            val displayedOrder = order.copy(status = orderStatuses[order.id] ?: order.status)
+        items(runtimeSnapshot.items, key = FeatureRuntimeItem::id) { item ->
+            val displayedStatus = itemStatuses[item.id] ?: item.status
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(displayedOrder.title, style = MaterialTheme.typography.titleMedium)
+                    Text(item.title, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "${displayedOrder.id} / ${displayedOrder.status.name}",
+                        "${item.id} / $displayedStatus",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    if (item.subtitle.isNotBlank()) {
+                        Text(item.subtitle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        actionsForOrder(displayedOrder).forEach { action ->
+                        item.actions.forEach { action ->
                             FilterChip(
                                 selected = false,
                                 onClick = {
-                                    val nextStatus = action.nextStatus(displayedOrder.status)
-                                    orderStatuses = orderStatuses + (displayedOrder.id to nextStatus)
-                                    lastActionResult = "${action.name} applied to ${displayedOrder.id}; status is now ${nextStatus.name}."
+                                    if (action.nextStatus.isNotBlank()) {
+                                        itemStatuses = itemStatuses + (item.id to action.nextStatus)
+                                    }
+                                    lastActionResult = action.result
                                 },
-                                label = { Text(action.name) },
+                                label = { Text(action.label) },
                             )
                         }
                     }
@@ -800,15 +806,6 @@ private fun CommercePermissionLine(label: String, enabled: Boolean) {
 
 private fun AppContext.hasPermission(permission: PermissionId): Boolean =
     commerceCapabilities.has(permission)
-
-private fun DeliveryAction.nextStatus(currentStatus: DeliveryStatus) =
-    when (this) {
-        DeliveryAction.Cancel -> DeliveryStatus.Cancelled
-        DeliveryAction.Accept -> DeliveryStatus.Assigned
-        DeliveryAction.MarkPickedUp -> DeliveryStatus.PickedUp
-        DeliveryAction.MarkDelivered -> DeliveryStatus.Delivered
-        else -> currentStatus
-    }
 
 private fun ResolvedExperienceOption.defaultTheme(): DemoTheme =
     when (experience.id) {

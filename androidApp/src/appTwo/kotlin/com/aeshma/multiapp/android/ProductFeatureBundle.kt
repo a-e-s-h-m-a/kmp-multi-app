@@ -1,6 +1,7 @@
 package com.aeshma.multiapp.android
 
 import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
+import com.aeshma.multiapp.core.model.FeatureRuntimeContributor
 import com.aeshma.multiapp.feature.delivery.DeliveryFeature
 import com.aeshma.multiapp.feature.lists.ListsFeature
 import com.aeshma.multiapp.feature.orders.OrdersFeature
@@ -10,5 +11,11 @@ object ProductFeatureBundle {
         OrdersFeature.definition,
         ListsFeature.definition,
         DeliveryFeature.definition,
+    )
+
+    val featureRuntimeContributors: List<FeatureRuntimeContributor> = listOfNotNull(
+        OrdersFeature.runtimeContributor,
+        ListsFeature.runtimeContributor,
+        DeliveryFeature.runtimeContributor,
     )
 }

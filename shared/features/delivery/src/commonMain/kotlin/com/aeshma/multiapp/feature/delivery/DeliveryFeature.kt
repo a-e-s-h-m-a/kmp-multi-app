@@ -1,13 +1,21 @@
 package com.aeshma.multiapp.feature.delivery
 
 import com.aeshma.multiapp.core.model.CommerceFeatureModule
+import com.aeshma.multiapp.core.model.AppContext
 import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
 import com.aeshma.multiapp.core.model.FeaturePermissionRow
+import com.aeshma.multiapp.core.model.FeatureRuntimeAction
+import com.aeshma.multiapp.core.model.FeatureRuntimeContributor
+import com.aeshma.multiapp.core.model.FeatureRuntimeItem
+import com.aeshma.multiapp.core.model.FeatureRuntimeSnapshot
 import com.aeshma.multiapp.core.model.FeatureUiBlock
 import com.aeshma.multiapp.core.model.PermissionId
 
 object DeliveryFeature : CommerceFeatureModule {
+    private val policyResolver = DeliveryPolicyResolver()
+    private val repository = SampleDeliveryRepository()
+
     override val definition: FeatureDefinitionSpec = FeatureDefinitionSpec(
         id = FeatureId.Delivery,
         title = "Delivery",
@@ -54,4 +62,40 @@ object DeliveryFeature : CommerceFeatureModule {
             ),
         ),
     )
+
+    override val runtimeContributor: FeatureRuntimeContributor = object : FeatureRuntimeContributor {
+        override val featureId: FeatureId = FeatureId.Delivery
+
+        override fun snapshot(context: AppContext): FeatureRuntimeSnapshot {
+            val policy = policyResolver.resolve(context)
+            return FeatureRuntimeSnapshot(
+                featureId = FeatureId.Delivery,
+                title = policy.experienceName,
+                items = repository.orders().map { order ->
+                    FeatureRuntimeItem(
+                        id = order.id,
+                        title = order.title,
+                        status = order.status.name,
+                        subtitle = "${order.id} / ${order.status.name}",
+                        actions = policy.availableActions(order).map { action ->
+                            FeatureRuntimeAction(
+                                label = action.name,
+                                result = "${action.name} applied to ${order.id}; status is now ${action.nextStatus(order.status).name}.",
+                                nextStatus = action.nextStatus(order.status).name,
+                            )
+                        },
+                    )
+                },
+            )
+        }
+    }
+
+    private fun DeliveryAction.nextStatus(currentStatus: DeliveryStatus): DeliveryStatus =
+        when (this) {
+            DeliveryAction.Cancel -> DeliveryStatus.Cancelled
+            DeliveryAction.Accept -> DeliveryStatus.Assigned
+            DeliveryAction.MarkPickedUp -> DeliveryStatus.PickedUp
+            DeliveryAction.MarkDelivered -> DeliveryStatus.Delivered
+            else -> currentStatus
+        }
 }

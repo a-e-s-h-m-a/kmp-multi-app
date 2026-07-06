@@ -33,6 +33,7 @@ class IOSProductCompositionRoot(productIdName: String) {
     private val runtime = createProductRuntime(
         productId = ProductId.fromExternalName(productIdName),
         featureDefinitions = platformFeatureDefinitions(),
+        featureRuntimeContributors = platformFeatureRuntimeContributors(),
     )
     private val snapshotMapper = SessionSnapshotMapper()
 

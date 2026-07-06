@@ -23,6 +23,7 @@ abstract class GenerateIosProductFeatureDefinitions : DefaultTask() {
 
         val imports = buildList {
             add("import com.aeshma.multiapp.core.model.FeatureDefinitionSpec")
+            add("import com.aeshma.multiapp.core.model.FeatureRuntimeContributor")
             if ("orders" in features) add("import com.aeshma.multiapp.feature.orders.OrdersFeature")
             if ("lists" in features) add("import com.aeshma.multiapp.feature.lists.ListsFeature")
             if ("catalog" in features) add("import com.aeshma.multiapp.feature.catalog.CatalogFeature")
@@ -38,6 +39,14 @@ abstract class GenerateIosProductFeatureDefinitions : DefaultTask() {
             if ("delivery" in features) add("DeliveryFeature.definition")
         }.joinToString(",\n    ")
 
+        val contributors = buildList {
+            if ("orders" in features) add("OrdersFeature.runtimeContributor")
+            if ("lists" in features) add("ListsFeature.runtimeContributor")
+            if ("catalog" in features) add("CatalogFeature.runtimeContributor")
+            if ("productdetails" in features) add("ProductDetailsFeature.runtimeContributor")
+            if ("delivery" in features) add("DeliveryFeature.runtimeContributor")
+        }.joinToString(",\n    ")
+
         file.writeText(
             """
             package com.aeshma.multiapp.application
@@ -46,6 +55,10 @@ abstract class GenerateIosProductFeatureDefinitions : DefaultTask() {
 
             internal actual fun platformFeatureDefinitions(): List<FeatureDefinitionSpec> = listOf(
                 $definitions,
+            )
+
+            internal actual fun platformFeatureRuntimeContributors(): List<FeatureRuntimeContributor> = listOfNotNull(
+                $contributors,
             )
             """.trimIndent(),
         )
@@ -83,7 +96,6 @@ kotlin {
             isStatic = true
             export(projects.shared.core.model)
             export(projects.shared.core.config)
-            export(projects.shared.features.delivery)
         }
     }
 
@@ -100,7 +112,6 @@ kotlin {
             api(projects.shared.core.model)
             api(projects.shared.core.config)
             api(projects.shared.core.analytics)
-            api(projects.shared.features.delivery)
         }
         iosMain {
             kotlin.srcDir(generatedIosFeatureDefinitionsDir)
@@ -110,6 +121,7 @@ kotlin {
             if ("lists" in selectedIosFeatures) api(projects.shared.features.lists)
             if ("catalog" in selectedIosFeatures) api(projects.shared.features.catalog)
             if ("productdetails" in selectedIosFeatures) api(projects.shared.features.productdetails)
+            if ("delivery" in selectedIosFeatures) api(projects.shared.features.delivery)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
@@ -117,6 +129,7 @@ kotlin {
             implementation(projects.shared.features.lists)
             implementation(projects.shared.features.catalog)
             implementation(projects.shared.features.productdetails)
+            implementation(projects.shared.features.delivery)
         }
     }
 }

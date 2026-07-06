@@ -6,18 +6,15 @@ import com.aeshma.multiapp.core.config.AuthRepository
 import com.aeshma.multiapp.core.model.AppContext
 import com.aeshma.multiapp.core.model.AppId
 import com.aeshma.multiapp.core.model.FeatureId
-import com.aeshma.multiapp.feature.delivery.DeliveryOrder
-import com.aeshma.multiapp.feature.delivery.DeliveryPolicy
-import com.aeshma.multiapp.feature.delivery.DeliveryPolicyResolver
-import com.aeshma.multiapp.feature.delivery.DeliveryRepository
+import com.aeshma.multiapp.core.model.FeatureRuntimeContributor
+import com.aeshma.multiapp.core.model.FeatureRuntimeSnapshot
 
 class SessionNotStartedException : IllegalStateException("Call login before requesting session data.")
 
 class AppSession(
     private val authRepository: AuthRepository,
     private val featureRegistry: FeatureRegistry,
-    private val deliveryPolicyResolver: DeliveryPolicyResolver,
-    private val deliveryRepository: DeliveryRepository,
+    private val featureRuntimeContributors: List<FeatureRuntimeContributor>,
     private val analyticsClient: AnalyticsClient,
 ) {
     var currentContext: AppContext? = null
@@ -53,10 +50,16 @@ class AppSession(
     fun availableFeatures(): List<FeatureDescriptor> =
         featureRegistry.availableFeatures(requireContext())
 
-    fun deliveryPolicy(): DeliveryPolicy =
-        deliveryPolicyResolver.resolve(requireContext())
+    fun featureRuntimeSnapshots(): List<FeatureRuntimeSnapshot> {
+        val context = requireContext()
+        val availableFeatureIds = availableFeatures().map { it.id }.toSet()
+        return featureRuntimeContributors
+            .filter { it.featureId in availableFeatureIds }
+            .map { it.snapshot(context) }
+    }
 
-    fun deliveryOrders(): List<DeliveryOrder> = deliveryRepository.orders()
+    fun featureRuntimeSnapshot(featureId: FeatureId): FeatureRuntimeSnapshot? =
+        featureRuntimeSnapshots().firstOrNull { it.featureId == featureId }
 
     fun trackFeatureOpened(featureId: FeatureId) {
         analyticsClient.track(

@@ -8,6 +8,7 @@ class IOSAppCompositionRoot(appIdName: String) {
     private val runtime = createAppRuntime(
         appId = AppId.fromExternalName(appIdName),
         featureDefinitions = platformFeatureDefinitions(),
+        featureRuntimeContributors = platformFeatureRuntimeContributors(),
     )
     private val experienceDefinition = ExperienceCatalog(defaultExperienceDefinitions())
         .definitions()

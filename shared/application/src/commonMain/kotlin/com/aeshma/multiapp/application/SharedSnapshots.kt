@@ -1,6 +1,7 @@
 package com.aeshma.multiapp.application
 
 import com.aeshma.multiapp.core.model.AppContext
+import com.aeshma.multiapp.core.model.FeatureId
 
 data class SharedFeatureSnapshot(
     val id: String,
@@ -46,7 +47,7 @@ data class SharedSessionSnapshot(
 
 class SessionSnapshotMapper {
     fun map(context: AppContext, session: AppSession): SharedSessionSnapshot {
-        val policy = session.deliveryPolicy()
+        val deliveryRuntime = session.featureRuntimeSnapshot(FeatureId.Delivery)
         return SharedSessionSnapshot(
             userSummary = "${context.userId} (${context.userType.name})",
             availableFeatures = session.availableFeatures().map { feature ->
@@ -82,13 +83,13 @@ class SessionSnapshotMapper {
                         },
                 )
             },
-            deliveryExperienceName = policy.experienceName,
-            deliveryOrders = session.deliveryOrders().map { order ->
+            deliveryExperienceName = deliveryRuntime?.title ?: "Delivery Disabled",
+            deliveryOrders = deliveryRuntime?.items.orEmpty().map { order ->
                 SharedDeliveryOrderSnapshot(
                     id = order.id,
                     title = order.title,
-                    status = order.status.name,
-                    actions = policy.availableActions(order).map { it.name },
+                    status = order.status,
+                    actions = order.actions.map { it.label },
                 )
             },
         )

@@ -24,6 +24,7 @@ import com.aeshma.multiapp.core.model.CommerceCapabilities
 import com.aeshma.multiapp.core.model.ExperienceId
 import com.aeshma.multiapp.core.model.FeatureDefinitionSpec
 import com.aeshma.multiapp.core.model.FeatureId
+import com.aeshma.multiapp.core.model.FeatureRuntimeContributor
 import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.core.model.RoleId
 
@@ -40,6 +41,7 @@ class ProductRuntime internal constructor(
     private val businessUnitCatalog: BusinessUnitCatalog,
     private val permissionTemplateCatalog: PermissionTemplateCatalog,
     private val featureDefinitions: List<FeatureDefinitionSpec>,
+    private val featureRuntimeContributors: List<FeatureRuntimeContributor>,
 ) {
     private val appRuntimesByName = mutableMapOf<String, AppRuntime>()
 
@@ -144,12 +146,17 @@ class ProductRuntime internal constructor(
         val appDefinition = appCatalog.definition(experienceDefinition.hostAppId)
 
         return appRuntimesByName.getOrPut(appDefinition.id.externalName.lowercase()) {
-            createAppRuntime(appDefinition.id, appCatalog, featureDefinitions)
+            createAppRuntime(
+                appDefinition.id,
+                appCatalog,
+                featureDefinitions,
+                featureRuntimeContributors,
+            )
         }
     }
 
     fun appRuntimeForHost(appId: AppId): AppRuntime =
-        createAppRuntime(appId, appCatalog, featureDefinitions)
+        createAppRuntime(appId, appCatalog, featureDefinitions, featureRuntimeContributors)
 }
 
 fun createProductRuntime(
@@ -160,6 +167,7 @@ fun createProductRuntime(
     businessUnitCatalog: BusinessUnitCatalog = BusinessUnitCatalog(defaultBusinessUnitDefinitions()),
     permissionTemplateCatalog: PermissionTemplateCatalog = PermissionTemplateCatalog(defaultPermissionTemplates()),
     featureDefinitions: List<FeatureDefinitionSpec> = emptyList(),
+    featureRuntimeContributors: List<FeatureRuntimeContributor> = emptyList(),
 ): ProductRuntime =
     ProductRuntime(
         productDefinition = productCatalog.definition(productId),
@@ -168,4 +176,5 @@ fun createProductRuntime(
         businessUnitCatalog = businessUnitCatalog,
         permissionTemplateCatalog = permissionTemplateCatalog,
         featureDefinitions = featureDefinitions,
+        featureRuntimeContributors = featureRuntimeContributors,
     )

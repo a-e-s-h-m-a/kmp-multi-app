@@ -12,9 +12,7 @@ import com.aeshma.multiapp.core.config.defaultAppDefinitions
 import com.aeshma.multiapp.core.model.ProductId
 import com.aeshma.multiapp.core.model.RoleId
 import com.aeshma.multiapp.feature.catalog.CatalogFeature
-import com.aeshma.multiapp.feature.delivery.DeliveryPolicyResolver
 import com.aeshma.multiapp.feature.delivery.DeliveryFeature
-import com.aeshma.multiapp.feature.delivery.SampleDeliveryRepository
 import com.aeshma.multiapp.feature.lists.ListsFeature
 import com.aeshma.multiapp.feature.orders.OrdersFeature
 import com.aeshma.multiapp.feature.productdetails.ProductDetailsFeature
@@ -37,12 +35,20 @@ class AppRuntimeTest {
         ProductDetailsFeature.definition,
         DeliveryFeature.definition,
     )
+    private val testFeatureRuntimeContributors = listOfNotNull(
+        OrdersFeature.runtimeContributor,
+        ListsFeature.runtimeContributor,
+        CatalogFeature.runtimeContributor,
+        ProductDetailsFeature.runtimeContributor,
+        DeliveryFeature.runtimeContributor,
+    )
 
     @Test
     fun metroGraphCreatesRuntimeForSelectedApp() {
         val runtime = createAppRuntime(
             appId = AppId.fromExternalName("apptwo"),
             featureDefinitions = testFeatureDefinitions,
+            featureRuntimeContributors = testFeatureRuntimeContributors,
         )
 
         assertEquals(AppId.AppTwo, runtime.appId)
@@ -189,8 +195,7 @@ class AppRuntimeTest {
         val session = AppSession(
             authRepository = LocalAuthRepository(catalog),
             featureRegistry = FeatureRegistry(testFeatureDefinitions),
-            deliveryPolicyResolver = DeliveryPolicyResolver(),
-            deliveryRepository = SampleDeliveryRepository(),
+            featureRuntimeContributors = testFeatureRuntimeContributors,
             analyticsClient = analytics,
         )
 
